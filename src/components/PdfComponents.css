@@ -1,0 +1,35 @@
+.pdf-components {
+  position: relative;
+}
+
+.pdf-page {
+  position: relative;
+  z-index: 1;
+}
+
+.editable-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
+
+.editable-row {
+  display: flex;
+}
+
+.editable-cell {
+  border: 1px solid #ccc;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.editable-cell:focus {
+  outline: none;
+  background-color: #f0f0f0;
+}
