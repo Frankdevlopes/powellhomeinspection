@@ -1,0 +1,244 @@
+/* Main container */
+.widget-container {
+  max-width: 100%;
+  width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  color: #333;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Heading */
+.widget-heading {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #007bff;
+}
+
+/* Subheading */
+.widget-subheading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+/* Form section */
+.widget-section {
+  margin-bottom: 20px;
+}
+
+/* Labels */
+.widget-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #555;
+}
+
+/* Inputs */
+.widget-input,
+.widget-input[type="date"] {
+  width: 100%;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* Checkbox containers */
+.widget-checkbox-container {
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Checkboxes */
+.widget-checkbox-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: normal;
+  color: #333;
+}
+
+.widget-checkbox-input,
+.widget-radio-input {
+  margin-right: 8px;
+}
+
+.widget-checkbox-text-input {
+  border: 1px solid #ccc;
+  padding: 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-size: 1rem;
+  flex-grow: 1;
+}
+
+/* Signature container */
+.signature-container {
+  position: relative;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 200px;
+}
+
+.clear-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.clear-button:hover {
+  background-color: #d32f2f;
+}
+
+/* Uploaded signature */
+.uploaded-signature {
+  max-width: 100%;
+  height: auto;
+  margin-top: 10px;
+}
+
+/* Upload container */
+.upload-container {
+  margin-top: 10px;
+}
+
+/* Submit button */
+.widget-submit-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.widget-submit-button:hover {
+  background-color: #0056b3;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .widget-container {
+    padding: 15px;
+  }
+
+  .widget-checkbox-text-input {
+    margin-left: 0;
+  }
+
+  .widget-submit-button {
+    font-size: 0.875rem;
+    padding: 10px;
+  }
+}
+
+/* PDF overlay adjustments */
+.widget-pdf-overlay {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Congratulatory message */
+.congrats-message {
+  display: none;
+  padding: 20px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 1.25rem;
+  text-align: center;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.congrats-message.show {
+  display: block;
+}
+.widget-container {
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+.widget-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.widget-input,
+.widget-textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.widget-checkbox-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.widget-checkbox-label {
+  margin-right: 20px;
+  margin-bottom: 10px;
+}
+
+.widget-section {
+  margin-bottom: 20px;
+}
+
+.widget-subheading {
+  font-size: 1.5em;
+  margin-top: 30px;
+  margin-bottom: 15px;
+}
+
+.signature-canvas {
+  border: 1px solid #ccc;
+  width: 100%;
+  height: 150px; /* Adjust height as needed */
+}
+
+.uploaded-signature {
+  margin-top: 10px;
+  max-width: 100%;
+  height: auto;
+}
+
+button {
+  cursor: pointer;
+}

@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
   Avatar,
@@ -18,31 +17,36 @@ import {
 } from "react-icons/io5";
 import { CiSettings } from "react-icons/ci";
 
-import user from "../assets/user.jpg";
+// Import necessary Firebase modules
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getAuth, updateProfile } from "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { useNavigate } from "react-router-dom";
+
+// Firebase configuration object (replace with your own config)
+const firebaseConfig = {
+  apiKey: "AIzaSyAZHfHbdRILuAqhbv7pjAJNNMJzZWI4hhc",
+  authDomain: "powellinspection.firebaseapp.com",
+  projectId: "powellinspection",
+  storageBucket: "powellinspection.appspot.com",
+  messagingSenderId: "868353797491",
+  appId: "1:868353797491:web:31e4ceba87288439b1e906",
+  measurementId: "G-VVDGKDRPDV"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const auth = getAuth(app);
 
 export default function HeaderNav() {
   return (
     <div className="flex items-center justify-between gap-6 my-3">
       <div className="flex items-center bg-white w-full space-x-4">
-        <div className="flex items-center justify-between  w-full border rounded-md p-2">
-          <div className="flex items-center gap-3 w-full ">
-            <FaSearch className="text-gray-400" />
-            <input
-              className="w-1/2 focus:outline-none"
-              placeholder="Search by name"
-              type="search"
-            />
-          </div>
-
-          <div className="bg-white border flex items-center px-2 py-1 rounded-md text-sm">
-            <span>Filter</span>
-            <IoFilterOutline className="h-4 w-6 text-gray-400" />
-          </div>
-        </div>
+        {/* Search bar */}
       </div>
       <div className="flex items-center space-x-4">
-        <IoShareSocial className="h-8 w-8 text-blue-300 rounded-full bg-white p-1 shadow-md hidden md:block" />
-        <FaBell className="h-8 w-8 text-yellow-400 rounded-full bg-white p-1 shadow-md" />
+        {/* Other icons */}
         <DropDownMenu />
       </div>
     </div>
@@ -51,6 +55,7 @@ export default function HeaderNav() {
 
 export function DropDownMenu() {
   const [anchorEl, setAnchorEl] = useState(null);
+  const [profilePic, setProfilePic] = useState(auth.currentUser?.photoURL || '');
   const open = Boolean(anchorEl);
   const navigate = useNavigate();
 
@@ -58,12 +63,32 @@ export function DropDownMenu() {
     handleClose();
     navigate("/login");
   };
+
+  const handleProfile = () => {
+    handleClose();
+    navigate("/profile");
+  };
+
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    const user = auth.currentUser;
+    if (user) {
+      const storageRef = ref(storage, `profile_images/${user.uid}/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const imageUrl = await getDownloadURL(storageRef);
+      await updateProfile(user, { photoURL: imageUrl });
+      setProfilePic(imageUrl); // Update the local state
+    }
+  };
+
   return (
     <>
       <Box sx={{ display: "flex", alignItems: "center", textAlign: "center" }}>
@@ -76,7 +101,7 @@ export function DropDownMenu() {
             aria-haspopup="true"
             aria-expanded={open ? "true" : undefined}
           >
-            <Avatar sx={{ width: 32, height: 32 }} src={user} />
+            <Avatar sx={{ width: 32, height: 32 }} src={profilePic} />
           </IconButton>
         </Tooltip>
       </Box>
@@ -115,22 +140,17 @@ export function DropDownMenu() {
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        <MenuItem onClick={handleClose}>
+        <MenuItem onClick={handleProfile}>
           <ListItemIcon>
             <IoPersonAdd fontSize="larger" />
           </ListItemIcon>
           Profile
         </MenuItem>
-        {/* <MenuItem onClick={handleClose}>
-          <Avatar fontSize="larger" /> My account
-        </MenuItem> */}
-
-        <MenuItem onClick={handleClose}>
-          <ListItemIcon>
-            <CiSettings fontSize="larger" />
-          </ListItemIcon>
-          Settings
+        <MenuItem>
+          <input type="file" onChange={handleImageUpload} />
+          <span>Change Profile Picture</span>
         </MenuItem>
+        {/* Other menu items */}
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <IoLogOut fontSize="small" />

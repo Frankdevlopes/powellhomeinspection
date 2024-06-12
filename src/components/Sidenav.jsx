@@ -5,9 +5,7 @@ import { MdOutlineSupportAgent } from "react-icons/md";
 import { SiBaremetrics } from "react-icons/si";
 import { CiSettings } from "react-icons/ci";
 import { IoMdLogOut } from "react-icons/io";
-
 import logo from "../assets/logo.png";
-
 import * as React from "react";
 import Drawer from "@mui/material/Drawer";
 import Button from "@mui/material/Button";
@@ -29,40 +27,17 @@ export default function SideNav() {
           <FaFile className="h-3 w-3 text-gray-600" />
           <span>New Inspection</span>
         </Link>
-        <Link className="flex items-center space-x-2">
-          <FaCheck className="h-3 w-3 text-gray-600" />
-          <span>Inspected</span>
-        </Link>
-        <Link to="/reports" className="flex items-center space-x-2">
+       
+        <Link to="/report-dashboard" className="flex items-center space-x-2">
           <FaChartBar className="h-3 w-3 text-gray-600" />
-          <span>Reports</span>
+          <span>Reports Dashboard</span>
         </Link>
-        <Link className="flex items-center space-x-2">
+        <Link to="/template-builder" className="flex items-center space-x-2"> {/* Update this link */}
           <GrTemplate className="h-3 w-3 text-gray-600" />
           <span>Templates</span>
         </Link>
-        <Link className="flex items-center space-x-2">
-          <FaUser className="h-3 w-3 text-gray-600" />
-          <span>Clients</span>
-        </Link>
-        <Link className="flex items-center space-x-2">
-          <SiBaremetrics className="h-3 w-3 text-gray-600" />
-          <span>Metrics</span>
-        </Link>
-        <Link className="flex items-center space-x-2">
-          <MdOutlineSupportAgent className="h-3 w-3 text-gray-600" />
-          <span>Training/Support</span>
-        </Link>
       </ul>
       <ul className="space-y-2">
-        <Link className="flex items-center space-x-2">
-          <CiSettings className="h-3 w-3 text-gray-600" />
-          <span>Email setting</span>
-        </Link>
-        <Link className="flex items-center space-x-2">
-          <CiSettings className="h-3 w-3 text-gray-600" />
-          <span>General setting</span>
-        </Link>
         <Link className="flex items-center space-x-2">
           <IoMdLogOut className="h-3 w-3 text-gray-600" />
           <span>Log Out</span>

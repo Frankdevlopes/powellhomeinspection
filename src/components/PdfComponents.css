@@ -1,35 +1,68 @@
 .pdf-components {
-  position: relative;
-}
-
-.pdf-page {
-  position: relative;
-  z-index: 1;
-}
-
-.editable-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-}
-
-.editable-row {
-  display: flex;
-}
-
-.editable-cell {
-  border: 1px solid #ccc;
-  width: 20px;
-  height: 20px;
-  text-align: center;
-  line-height: 20px;
-  cursor: text;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.editable-cell:focus {
-  outline: none;
-  background-color: #f0f0f0;
-}
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .tools-card {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .tool {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 5px;
+    cursor: grab;
+  }
+  
+  .pdf-canvas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .upload-area {
+    border: 2px dashed #ccc;
+    padding: 20px;
+    cursor: pointer;
+  }
+  
+  .pdf-container {
+    position: relative;
+  }
+  
+  .overlay-elements {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  .pagination {
+    margin-top: 20px;
+  }
+  
+  .tooltip {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 5px;
+    margin-top: 10px;
+  }
+  
+  .pdf-error {
+    color: red;
+    margin-top: 10px;
+  }
+  
+  .text-box {
+    position: absolute;
+  }
+  

@@ -1,0 +1,112 @@
+.pdf-components {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.tools-card {
+  margin-bottom: 20px;
+}
+
+.pdf-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #ccc;
+  padding: 20px;
+  width: 100%;
+}
+
+.upload-area {
+  margin-bottom: 20px;
+}
+
+.pdf-container {
+  position: relative;
+}
+
+.overlay-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.text-box {
+  background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.pagination button {
+  margin: 0 10px;
+}
+
+.pdf-text {
+  margin-top: 20px;
+  width: 100%;
+}
+.pdf-components {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.tools-card {
+  margin-bottom: 20px;
+}
+
+.pdf-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #ccc;
+  padding: 20px;
+  width: 100%;
+}
+
+.upload-area {
+  margin-bottom: 20px;
+}
+
+.pdf-container {
+  position: relative;
+}
+
+.overlay-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.text-box {
+  background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.pagination button {
+  margin: 0 10px;
+}
+
+.pdf-text {
+  margin-top: 20px;
+  width: 100%;
+}
