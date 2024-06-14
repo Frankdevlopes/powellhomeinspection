@@ -79,7 +79,7 @@ const ReportDashboard = () => {
         </>
       )}
       <ReportCard
-        title="Report Reviews assigned to me"
+        title="Report Saved from Template Section"
         content={
           <>
             <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
@@ -94,7 +94,7 @@ const ReportDashboard = () => {
         }
       />
       <ReportCard
-        title="My Reports In Progress"
+        title="My Recently Saved Reports"
         content={
           <>
             <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>

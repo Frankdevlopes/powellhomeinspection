@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import Swal from 'sweetalert2';
 import { auth } from "./firebase"; // Adjust the import path as necessary
 import logo from "../assets/logo.png";
 import Button from "../ui/Button";
@@ -56,9 +57,45 @@ function LoginForm() {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/home");
+      Swal.fire({
+        title: 'Login Successful!',
+        text: 'You have logged in successfully.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+      }).then(() => {
+        navigate("/home");
+      });
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Please enter your email address to reset your password.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Swal.fire({
+        title: 'Email Sent!',
+        text: 'Please check your email for password reset instructions.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+      });
+    } catch (err) {
+      Swal.fire({
+        title: 'Error!',
+        text: err.message,
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
     }
   };
 
@@ -86,7 +123,12 @@ function LoginForm() {
           <Button type="secondary" className="w-full bg-blue-500 text-white" to="/register">Sign up</Button>
         </div>
       </form>
-      <Link className="text-blue-500 py-3 flex justify-center">Forgot password</Link>
+      <button
+        onClick={handleForgotPassword}
+        className="text-blue-500 py-3 flex justify-center"
+      >
+        Forgot password
+      </button>
     </div>
   );
 }

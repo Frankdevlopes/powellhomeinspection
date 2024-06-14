@@ -11,7 +11,7 @@ const HomeInspectionProficiency = () => {
         <div className="text-section">
           <h2 className="title">Our Home Inspection Proficiency</h2>
           <p className="description">
-            At XYZ Inspections, we pride ourselves on providing thorough and detailed home inspections.
+            At <b>POWELL Inspections</b>, we pride ourselves on providing thorough and detailed home inspections.
             Our team is highly trained and experienced in identifying any potential issues in your home.
           </p>
           <div className="proficiency-list">
