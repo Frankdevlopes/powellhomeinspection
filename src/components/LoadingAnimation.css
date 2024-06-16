@@ -1,0 +1,19 @@
+/* LoadingAnimation.css */
+
+.loader {
+    width: 50px;
+    height: 50px;
+    aspect-ratio: 1;
+    margin: auto; /* Center the loader */
+    display: grid;
+    place-items: center;
+    -webkit-mask: conic-gradient(from 15deg, #0000, #000);
+    animation: l26 1s infinite steps(12);
+  }
+  
+  @keyframes l26 {
+    100% {
+      transform: rotate(1turn);
+    }
+  }
+  

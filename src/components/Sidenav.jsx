@@ -37,12 +37,7 @@ export default function SideNav() {
           <span>Templates</span>
         </Link>
       </ul>
-      <ul className="space-y-2">
-        <Link className="flex items-center space-x-2">
-          <IoMdLogOut className="h-3 w-3 text-gray-600" />
-          <span>Log Out</span>
-        </Link>
-      </ul>
+     
     </aside>
   );
 }

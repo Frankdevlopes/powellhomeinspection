@@ -1,47 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-// Shared classes object
-const sharedClasses = {
-  borderBlue: 'border border-blue-500',
-  textBlue: 'text-blue-500',
-  bgZinc: 'bg-zinc-200',
-  flex: 'flex justify-between items-center',
-  p4: 'p-4',
-  spaceY4: 'space-y-4',
-  spaceY2: 'space-y-2',
-  h4: 'h-4',
-  fontSemiBold: 'font-semibold',
-  btnPrimary: 'bg-blue-500 hover:bg-yellow-400 text-white font-bold py-2 px-4 rounded',
-  btnSecondary: 'bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded',
-  popup: 'absolute bg-white border border-gray-300 shadow-lg p-4 mt-2',
-  backdrop: 'fixed inset-0 bg-black bg-opacity-50',
-};
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../auth/firebase';
+import './reportDashboard.css';
 
 // ReportCard component
-const ReportCard = ({ title, content }) => {
-  return (
-    <div className={`${sharedClasses.borderBlue} ${sharedClasses.p4}`}>
-      <div className={`${sharedClasses.flex} mb-2`}>
-        <h2 className={`text-lg ${sharedClasses.fontSemiBold}`}>{title}</h2>
-        <Link
-          to="/search"
-          className={`${sharedClasses.borderBlue} text-white ${sharedClasses.btnPrimary}`}
-        >
-          Search
-        </Link>
-      </div>
-      <div className={`${sharedClasses.borderBlue} ${sharedClasses.p4} ${sharedClasses.spaceY2}`}>
-        {content}
-      </div>
+const ReportCard = ({ title, content }) => (
+  <div className={`border-blue p-4 bg-zinc mb-4`}>
+    <div className="flex justify-between items-center mb-2">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <Link to="/search" className="border-blue text-white btn-primary">
+        Search
+      </Link>
     </div>
-  );
-};
+    <div className="border-blue p-4 space-y-2">
+      {content}
+    </div>
+  </div>
+);
 
 // ReportDashboard component incorporating ReportCard
 const ReportDashboard = () => {
   const [showPopup, setShowPopup] = useState(false);
+  const [reports, setReports] = useState([]);
   const navigate = useNavigate(); // Initialize useNavigate
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'pdfReports'));
+        const reportsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setReports(reportsData);
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   // Function to handle the click event of the "+Report" button
   const handleNewReport = () => {
@@ -61,62 +60,43 @@ const ReportDashboard = () => {
   };
 
   return (
-    <div className={`${sharedClasses.p4} ${sharedClasses.spaceY4} relative`}>
-      <button className={`${sharedClasses.btnPrimary} mb-4`} onClick={handleNewReport}>
-        +(BrowseOptions)
+    <div className="p-4 space-y-4 relative">
+      <button className="btn-primary mb-4" onClick={handleNewReport}>
+        + Report
       </button>
       {showPopup && (
         <>
-          <div className={sharedClasses.backdrop} onClick={() => setShowPopup(false)}></div>
-          <div className={sharedClasses.popup}>
-            <button className={sharedClasses.btnPrimary} onClick={startNewReport}>
+          <div className="backdrop" onClick={() => setShowPopup(false)}></div>
+          <div className="popup">
+            <button className="btn-primary" onClick={startNewReport}>
               Start New Report
             </button>
-            <button className={`${sharedClasses.btnSecondary} ml-2`} onClick={useTemplate}>
+            <button className="btn-secondary ml-2" onClick={useTemplate}>
               Choose a Template
             </button>
           </div>
         </>
       )}
-      <ReportCard
-        title="Report Saved from Template Section"
-        content={
-          <>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.textBlue}>
-              <p>Received</p>
-              <p>1 day 3 hours</p>
-              <p>1 day 8 hours</p>
-            </div>
-          </>
-        }
-      />
-      <ReportCard
-        title="My Recently Saved Reports"
-        content={
-          <>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.textBlue}>
-              <p>Days Since Inspection</p>
-              <p>1 day 8 hours</p>
-              <p className="font-bold">1 day 12 hours</p>
-            </div>
-          </>
-        }
-      />
-      <ReportCard
-        title="My Past Reports"
-        content={
-          <>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-            <div className={sharedClasses.h4 + ' ' + sharedClasses.bgZinc}></div>
-          </>
-        }
-      />
+      {reports.length > 0 ? (
+        reports.map((report) => (
+          <ReportCard
+            key={report.id}
+            title={report.formData.insuredName}
+            content={
+              <>
+                <p><strong>Policy Number:</strong> {report.formData.policyNumber}</p>
+                <p><strong>Address:</strong> {report.formData.address}</p>
+                <p><strong>Date Inspected:</strong> {report.formData.dateInspected}</p>
+                <a href={report.pdfUrl} target="_blank" rel="noopener noreferrer" className="text-blue">
+                  View PDF
+                </a>
+              </>
+            }
+          />
+        ))
+      ) : (
+        <p>No reports found.</p>
+      )}
     </div>
   );
 };

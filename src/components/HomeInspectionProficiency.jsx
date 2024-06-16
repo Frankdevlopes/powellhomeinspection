@@ -1,12 +1,41 @@
-import React from 'react';
-import './HomeInspectionProficiency.css'; // Import the CSS file for styling
+import React, { useState, useEffect } from 'react';
+import './HomeInspectionProficiency.css';
+
+import peerImage from '/src/assets/peer.jpg'; // Import your image
 
 const HomeInspectionProficiency = () => {
+  const [loading, setLoading] = useState(true); // State to track loading
+  const [imageLoaded, setImageLoaded] = useState(false); // State to track image loading
+
+  useEffect(() => {
+    // Simulating a delay for loading (you can remove this in production)
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 1500); // Adjust delay time as needed
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
+
   return (
     <div className="container">
-      <div className="content">
+      {loading && (
+        <div className="image-placeholder">
+          <div className="loading-animation spinner"></div>
+        </div>
+      )}
+
+      <div className={`content ${loading ? 'hidden' : ''}`}>
         <div className="image-section">
-          <img src="/src/assets/peer.jpg" alt="Home Inspection" className="image" />
+          <img
+            src={peerImage}
+            alt="Home Inspection"
+            className={`image ${imageLoaded ? 'image-loaded' : ''}`}
+            onLoad={handleImageLoad}
+          />
         </div>
         <div className="text-section">
           <h2 className="title">Our Home Inspection Proficiency</h2>
@@ -39,3 +68,5 @@ const HomeInspectionProficiency = () => {
 };
 
 export default HomeInspectionProficiency;
+
+

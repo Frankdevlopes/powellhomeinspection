@@ -146,10 +146,7 @@ export function DropDownMenu() {
           </ListItemIcon>
           Profile
         </MenuItem>
-        <MenuItem>
-          <input type="file" onChange={handleImageUpload} />
-          <span>Change Profile Picture</span>
-        </MenuItem>
+       
         {/* Other menu items */}
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>

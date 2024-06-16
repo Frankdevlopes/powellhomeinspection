@@ -1,15 +1,14 @@
-/* Main container */
 .widget-container {
-  max-width: 100%;
-  width: 800px;
-  margin: 0 auto;
+  max-width: 1000px; /* Adjust based on your design preference */
+  width: 90%; /* Allow some breathing room */
+  margin: 20px auto; /* Center align and add spacing */
   padding: 20px;
   background-color: #f9f9f9;
   color: #333;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Heading */
@@ -94,6 +93,7 @@
   border: 1px solid #ccc;
   border-radius: 4px;
   margin-bottom: 10px;
+  width: 100%; /* Ensures the signature container is the same width as the form */
 }
 
 .signature-canvas {
@@ -165,7 +165,10 @@
 
 /* PDF overlay adjustments */
 .widget-pdf-overlay {
-  max-width: 100%;
+  max-width: 1000px; /* Match the max-width of the form container */
+  width: 90%; /* Match the width of the form container */
+  margin: 20px auto; /* Center align and add spacing */
+  box-sizing: border-box;
   overflow: hidden;
 }
 
@@ -185,63 +188,16 @@
   display: block;
 }
 
-/* Labels */
-.widget-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-/* Inputs */
+/* Additional adjustments for form elements to ensure consistent width */
+.widget-section,
+.widget-subheading,
 .widget-input,
-.widget-textarea {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-/* Checkbox container */
-.widget-checkbox-container {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-/* Checkbox labels */
-.widget-checkbox-label {
-  margin-right: 20px;
-  margin-bottom: 10px;
-}
-
-/* Form section */
-.widget-section {
-  margin-bottom: 20px;
-}
-
-/* Subheading */
-.widget-subheading {
-  font-size: 1.5em;
-  margin-top: 30px;
-  margin-bottom: 15px;
-}
-
-/* Signature canvas */
-.signature-canvas {
-  border: 1px solid #ccc;
-  width: 100%;
-  height: 150px; /* Adjust height as needed */
-}
-
-/* Uploaded signature */
-.uploaded-signature {
-  margin-top: 10px;
+.widget-textarea,
+.widget-checkbox-container,
+.signature-container,
+.upload-container,
+.widget-submit-button {
   max-width: 100%;
-  height: auto;
-}
-
-/* Button */
-button {
-  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
 }

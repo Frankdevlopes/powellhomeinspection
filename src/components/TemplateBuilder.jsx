@@ -6,8 +6,9 @@ import TextEditor from "./textEditor";
 import Swal from "sweetalert2";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { ref, uploadBytes } from "firebase/storage";
-import { storage } from "../auth/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage, db } from "../auth/firebase";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import "./PdfComponents.css";
 
 const PdfComponents = () => {
@@ -176,7 +177,7 @@ const PdfComponents = () => {
     }
   }, [pdfPages, pageNumber, pdfDoc]);
 
-  const saveReport = () => {
+  const saveReport = async () => {
     if (!pdfText.trim()) {
       Swal.fire({
         icon: "error",
@@ -188,40 +189,63 @@ const PdfComponents = () => {
 
     Swal.fire({
       title: "Do you want to save the changes?",
-      showDenyButton: true,
+      text: "Make sure you have added all necessary content before saving.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Save",
-      denyButtonText: `Don't save`,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, save it!",
+      cancelButtonText: "No, cancel",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const element = document.querySelector(".pdf-text");
+        const timestamp = new Date();
+        const form = { textContent: pdfText, timestamp };
+        const docRef = await addDoc(collection(db, 'inspectionForms'), form);
+
+        const element = document.querySelector(".pdf-container");
         const canvas = await html2canvas(element);
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF();
         pdf.addImage(imgData, "PNG", 0, 0);
         const pdfBlob = pdf.output("blob");
 
-        const storageRef = ref(storage, `reports/${uuidv4()}.pdf`);
-        await uploadBytes(storageRef, pdfBlob);
+        const fileRef = ref(storage, `inspectionForms/${docRef.id}/report.pdf`);
+        await uploadBytes(fileRef, pdfBlob);
+        const fileURL = await getDownloadURL(fileRef);
+        await updateDoc(doc(db, 'inspectionForms', docRef.id), { fileURL });
 
-        Swal.fire("Saved!", "", "success");
-      } else if (result.isDenied) {
-        Swal.fire("Changes are not saved", "", "info");
+        Swal.fire("Saved!", "Your report has been saved successfully.", "success");
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        Swal.fire("Cancelled", "Your changes were not saved.", "error");
       }
     });
   };
 
   const clearForm = () => {
-    setPdf(null);
-    setNumPages(null);
-    setPageNumber(1);
-    setElements([]);
-    setSelectedElementType(null);
-    setPdfDoc(null);
-    setPdfPages([]);
-    setRendered(false);
-    setPdfError(null);
-    setPdfText("");
+    Swal.fire({
+      title: "Are you sure you want to clear the form?",
+      text: "This action cannot be undone!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, clear it!",
+      cancelButtonText: "No, keep it",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setPdf(null);
+        setNumPages(null);
+        setPageNumber(1);
+        setElements([]);
+        setSelectedElementType(null);
+        setPdfDoc(null);
+        setPdfPages([]);
+        setRendered(false);
+        setPdfError(null);
+        setPdfText("");
+        Swal.fire("Cleared!", "The form has been cleared.", "success");
+      }
+    });
   };
 
   const refreshPage = () => {
@@ -249,7 +273,6 @@ const PdfComponents = () => {
       onDragOver={(e) => e.preventDefault()}
       style={{ fontFamily: "'Arial', sans-serif", margin: "20px" }}
     >
-      {/* Instructions */}
       <div
         className="instructions"
         style={{
@@ -260,11 +283,10 @@ const PdfComponents = () => {
         }}
       >
         <p>
-          Please upload a PDF document to edit. You can drag and drop elements onto the PDF canvas and modify text in the text editor below.
+          Please upload a PDF document to edit. You can drag and drop elements onto the PDF canvas and modify text in the text editor below or you can just compose your template and save it for reference.
         </p>
       </div>
 
-      {/* Tools Card */}
       <div
         className="tools-card"
         style={{
@@ -327,7 +349,6 @@ const PdfComponents = () => {
         </button>
       </div>
 
-      {/* PDF Canvas */}
       <div
         className="pdf-canvas"
         style={{
@@ -366,7 +387,6 @@ const PdfComponents = () => {
         )}
       </div>
 
-      {/* Pagination */}
       {numPages && (
         <div
           className="pagination"
@@ -411,7 +431,6 @@ const PdfComponents = () => {
         </div>
       )}
 
-      {/* PDF Text */}
       {pdfError && (
         <div
           className="pdf-error"
