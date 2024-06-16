@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import PdfOverlayForm from './pdfoverlay';
-import InspectionForm from './inspectionform';
 import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
 import { v4 as uuidv4 } from 'uuid';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc } from 'firebase/firestore';
 import { storage, db } from '../auth/firebase';
-import './widget.css';  // Import the CSS file
+import './widget.css'; // Import the CSS file
+import PdfOverlayForm from './pdfoverlay';
+import InspectionForm from './inspectionform';
 
 const PdfComponent = () => {
   const [formData, setFormData] = useState({
@@ -73,6 +73,33 @@ const PdfComponent = () => {
         icon: 'success',
         confirmButtonText: 'OK'
       });
+
+      // Clear form data after successful submission
+      setFormData({
+        insuredName: '',
+        policyNumber: '',
+        applicantPolicyNumber: '',
+        address: '',
+        dateInspected: '',
+        yearBuilt: '',
+        occupancy: '',
+        structureTie: '',
+        windClass: '',
+        roofDesign: '',
+        roofMaterial: '',
+        ageOfHome: '',
+        roofAge: '',
+        waterHeaterAge: '',
+        plumbingMaterialUsed: '',
+        aluminumWiring: '',
+        clientNamePresent: '',
+        roofCovering: '',
+        waterService: '',
+        roofSlope: '',
+        describeConditions: '',
+        options: ''
+      });
+
     } catch (error) {
       // Show error message if something goes wrong
       Swal.fire({
@@ -90,23 +117,24 @@ const PdfComponent = () => {
       <form onSubmit={handleSubmit}>
         <PdfOverlayForm formData={formData} handleInputChange={handleInputChange} />
         <InspectionForm formData={formData} handleInputChange={handleInputChange} />
-        <button
-          type="submit"
-          className="widget-submit-button"
-          style={{
-            fontSize: '12px',
-            padding: '5px 10px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            marginTop: '10px',
-            width: '100px'
-          }}
-        >
-          Submit
-        </button>
+        <div className="centered-button-container">
+          <button
+            type="submit"
+            className="widget-submit-button"
+            style={{
+              fontSize: '12px',
+              padding: '5px 10px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              width: '100px'
+            }}
+          >
+            Submit
+          </button>
+        </div>
       </form>
     </div>
   );

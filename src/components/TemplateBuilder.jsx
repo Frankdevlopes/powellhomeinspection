@@ -200,14 +200,13 @@ const PdfComponents = () => {
       if (result.isConfirmed) {
         const timestamp = new Date();
         const form = { textContent: pdfText, timestamp };
-        const docRef = await addDoc(collection(db, 'inspectionForms'), form);
 
-        const element = document.querySelector(".pdf-container");
-        const canvas = await html2canvas(element);
-        const imgData = canvas.toDataURL("image/png");
+        // Generate PDF from text content
         const pdf = new jsPDF();
-        pdf.addImage(imgData, "PNG", 0, 0);
+        pdf.text(pdfText, 10, 10); // Adjust position as needed
         const pdfBlob = pdf.output("blob");
+
+        const docRef = await addDoc(collection(db, 'inspectionForms'), form);
 
         const fileRef = ref(storage, `inspectionForms/${docRef.id}/report.pdf`);
         await uploadBytes(fileRef, pdfBlob);
