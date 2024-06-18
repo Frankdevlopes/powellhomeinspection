@@ -22,11 +22,9 @@ const ReportCard = ({ id, title, content, onDelete }) => {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         <div className="flex">
-          <Link to="/search" className="border-blue text-white btn-primary">
-            Search
-          </Link>
+          
           <button className="btn-secondary ml-2" onClick={() => onDelete(id)}>
-            Delete
+            Press the Share Button
           </button>
           <button className="btn-secondary ml-2" onClick={() => handleShare(content.pdfUrl, title)}>
             <img src={ShareIcon} alt="Share PDF" className="h-5 w-5" />

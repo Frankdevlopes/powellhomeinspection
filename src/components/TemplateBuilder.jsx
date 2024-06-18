@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import Draggable from "react-draggable";
 import { v4 as uuidv4 } from "uuid";
-import TextEditor from "./textEditor";
 import Swal from "sweetalert2";
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, db } from "../auth/firebase";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import "./PdfComponents.css";
 
 const PdfComponents = () => {
@@ -144,13 +144,33 @@ const PdfComponents = () => {
                 borderRadius: "5px",
               }}
             >
-              <TextEditor
-                content={element.content}
-                onContentChange={(content) => {
+              <ReactQuill
+                value={element.content}
+                onChange={(content) => {
                   const updatedElements = [...elements];
                   updatedElements[index].content = content;
                   setElements(updatedElements);
                 }}
+                modules={{
+                  toolbar: [
+                    [{ 'header': '1' }, { 'header': '2' }, { 'font': [] }],
+                    [{ 'size': [] }],
+                    ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+                    ['link', 'image', 'video'],
+                    ['clean'],
+                    [{ 'align': [] }],
+                    [{ 'color': [] }, { 'background': [] }],
+                  ]
+                }}
+                formats={[
+                  'header', 'font', 'size',
+                  'bold', 'italic', 'underline', 'strike', 'blockquote',
+                  'list', 'bullet', 'indent',
+                  'link', 'image', 'video',
+                  'align', 'color', 'background'
+                ]}
+                style={{ height: '100px' }}
               />
             </div>
           </Draggable>
@@ -453,7 +473,30 @@ const PdfComponents = () => {
         }}
       >
         <h3>Extracted Text</h3>
-        <TextEditor content={pdfText} onContentChange={setPdfText} />
+        <ReactQuill
+          value={pdfText}
+          onChange={setPdfText}
+          modules={{
+            toolbar: [
+              [{ 'header': '1' }, { 'header': '2' }, { 'font': [] }],
+              [{ 'size': [] }],
+              ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+              [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+              ['link', 'image', 'video'],
+              ['clean'],
+              [{ 'align': [] }],
+              [{ 'color': [] }, { 'background': [] }],
+            ]
+          }}
+          formats={[
+            'header', 'font', 'size',
+            'bold', 'italic', 'underline', 'strike', 'blockquote',
+            'list', 'bullet', 'indent',
+            'link', 'image', 'video',
+            'align', 'color', 'background'
+          ]}
+          style={{ height: '200px' }}
+        />
       </div>
     </div>
   );
