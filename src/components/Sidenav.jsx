@@ -25,7 +25,7 @@ export default function SideNav() {
         </Link>
         <Link to="/pdf" className="flex items-center space-x-2">
           <FaFile className="h-3 w-3 text-gray-600" />
-          <span>New Inspection</span>
+          <span>PDF Overlay</span>
         </Link>
        
         <Link to="/report-dashboard" className="flex items-center space-x-2">

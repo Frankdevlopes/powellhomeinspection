@@ -1,352 +1,790 @@
-import React, { useState, useRef } from 'react';
-import Swal from 'sweetalert2';
-import { jsPDF } from 'jspdf';
-import { v4 as uuidv4 } from 'uuid';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc } from 'firebase/firestore';
-import { storage, db } from '../auth/firebase';
-import SignatureCanvas from 'react-signature-canvas';
-import './widget.css'; // Import the CSS file
+import React, { useState, useEffect, useRef } from "react";
+import { useDropzone } from "react-dropzone";
+import Draggable from "react-draggable";
+import { ResizableBox } from "react-resizable";
+import "react-resizable/css/styles.css";
+import { v4 as uuidv4 } from "uuid";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { addInspectionForm } from "../auth/firebase"; // Adjusted import path
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import Firebase storage
 
-// Shared Tailwind CSS classes
-const sharedClasses = {
-  input: 'border rounded w-full p-1',
-  label: 'block',
-  checkbox: 'mr-2',
-  grid: 'grid grid-cols-2 gap-2',
-  grid3: 'grid grid-cols-3 gap-4',
-  border: 'border-b pb-2 mb-4',
-  font: 'font-semibold',
-};
+const PdfComponents = () => {
+  const [pdf, setPdf] = useState(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [elements, setElements] = useState([]);
+  const [selectedElementType, setSelectedElementType] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [pdfPages, setPdfPages] = useState([]);
+  const [rendered, setRendered] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
+  const [textBoxVisible, setTextBoxVisible] = useState(false);
+  const [textBoxContent, setTextBoxContent] = useState('');
+  const [textBoxFont, setTextBoxFont] = useState('Arial');
+  const [textBoxColor, setTextBoxColor] = useState('#000000');
+  const [textBoxFontWeight, setTextBoxFontWeight] = useState('normal');
+  const [textBoxFontSize, setTextBoxFontSize] = useState(12);
+  const [imageFile, setImageFile] = useState(null);
+  const [errorPopup, setErrorPopup] = useState(false);
+  const [signatureBoxVisible, setSignatureBoxVisible] = useState(false);
+  const [signatureContent, setSignatureContent] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawings, setDrawings] = useState([]);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const [highlights, setHighlights] = useState([]);
+  const [isErasing, setIsErasing] = useState(false);
+  const [savePopup, setSavePopup] = useState(false);
+  const imageInputRef = useRef(null);
+  const pdfCanvasRef = useRef(null);
+  const startX = useRef(0);
+  const startY = useRef(0);
 
-const inputClass =
-  'w-full border border-zinc-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-white';
+  const storage = getStorage(); // Initialize storage here
 
-const FormInput = ({ label, id, type, value, onChange }) => {
-  return (
-    <div>
-      <label className="block text-sm font-medium mb-1" htmlFor={id}>
-        {label}
-      </label>
-      <input id={id} type={type} className={inputClass} value={value} onChange={onChange} />
-    </div>
-  );
-};
+  useEffect(() => {
+    const loadFont = () => {
+      const link = document.createElement("link");
+      link.href = "https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap";
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    };
+    loadFont();
+  }, []);
 
-const CheckboxItem = ({ id, label, checked, onChange }) => {
-  return (
-    <li>
-      <input type="checkbox" id={id} className="mr-2" checked={checked} onChange={onChange} />
-      <label htmlFor={id}>{label}</label>
-    </li>
-  );
-};
+  useEffect(() => {
+    if (pdf && !rendered) {
+      renderPdf();
+      setRendered(true);
+    }
+  }, [pdf, rendered]);
 
-const PdfComponent = () => {
-  const [formData, setFormData] = useState({
-    insuredName: '',
-    policyNumber: '',
-    address: '',
-    dateInspected: '',
-    yearBuilt: '',
-    ageOfHome: '',
-    roofAge: '',
-    clientNamePresent: '',
-    roofCovering: '',
-    waterService: '',
-    roofSlope: '',
-    describeConditions: '',
-    mainPanelType: '',
-    secondPanelType: '',
-    totalAmpsMainPanel: '',
-    totalAmpsSecondPanel: '',
-    mainPanelSufficient: '',
-    secondPanelSufficient: '',
-    copperWiring: 'No',
-    aluminumWiringType: 'No',
-    nmBxOrConduit: 'No',
-    blowingFuses: 'No',
-    trippingBreakers: 'No',
-    emptySockets: 'No',
-    looseWiring: 'No',
-    improperGrounding: 'No',
-    corrosion: 'No',
-    overFusing: 'No',
-    doubleTaps: 'No',
-    signatureName: '' // Add signature name field
-  });
+  useEffect(() => {
+    if (pdfDoc) {
+      setNumPages(pdfDoc.numPages);
+    }
+  }, [pdfDoc]);
 
-  const [photos, setPhotos] = useState([]);
-  const [uploadedSignature, setUploadedSignature] = useState(null);
-  const sigCanvas = useRef(null);
+  useEffect(() => {
+    if (pdfDoc && pdfPages.length === 0) {
+      renderPages();
+    }
+  }, [pdfDoc, pdfPages]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+  useEffect(() => {
+    if (errorPopup) {
+      const timer = setTimeout(() => {
+        setErrorPopup(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorPopup]);
+
+  useEffect(() => {
+    if (savePopup) {
+      const timer = setTimeout(() => {
+        setSavePopup(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [savePopup]);
+
+  const renderPdf = async () => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.js";
+    script.async = true;
+    script.onload = async () => {
+      try {
+        const pdfData = new Uint8Array(pdf);
+        const loadedPdf = await window.pdfjsLib.getDocument(pdfData).promise;
+        setPdfDoc(loadedPdf);
+      } catch (error) {
+        setPdfError(error.message);
+      }
+    };
+    document.body.appendChild(script);
   };
 
-  const handlePhotoChange = (event) => {
-    setPhotos([...event.target.files]);
+  const renderPages = async () => {
+    const pages = [];
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      pages.push(page);
+    }
+    setPdfPages(pages);
   };
 
-  const clearSignature = () => {
-    sigCanvas.current.clear();
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
   };
 
-  const handleUploadSignature = (event) => {
+  const onDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPdf(reader.result);
+      setPdfDoc(null);
+      setPdfPages([]);
+      setPageNumber(1);
+      setElements([]);
+      setPdfError(null);
+      setRendered(false);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const { getRootProps, getInputProps } = useDropzone({ onDrop });
+
+  const handleTextAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setSelectedElementType("text");
+    setTextBoxVisible(true);
+  };
+
+  const handleTextSubmit = () => {
+    if (textBoxContent) {
+      setElements([...elements, { type: "text", id: uuidv4(), content: textBoxContent, x: 50, y: 50, font: textBoxFont, color: textBoxColor, fontWeight: textBoxFontWeight, fontSize: textBoxFontSize }]);
+      setTextBoxVisible(false);
+      setTextBoxContent('');
+      setSelectedElementType(null);
+    }
+  };
+
+  const handleShapeAdd = (shape) => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setElements([...elements, { type: "shape", id: uuidv4(), shape, x: 50, y: 50 }]);
+    setSelectedElementType(null);
+  };
+
+  const handleImageAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setSelectedElementType("image");
+    imageInputRef.current.click();
+  };
+
+  const handleImageUpload = (event) => {
     const file = event.target.files[0];
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedSignature(e.target.result);
+    reader.onload = () => {
+      setImageFile(reader.result);
+      setElements([...elements, { type: "image", id: uuidv4(), src: reader.result, x: 50, y: 50, width: 100, height: 100 }]);
+      setSelectedElementType(null);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleDateAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    const currentDate = new Date().toLocaleDateString();
+    setElements([...elements, { type: "date", id: uuidv4(), content: currentDate, x: 50, y: 50 }]);
+    setSelectedElementType(null);
+  };
 
-    try {
-      // Generate PDF
-      const pdf = new jsPDF();
-      pdf.setFontSize(10);
-      let yPosition = 10;
+  const handleSignatureAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setSelectedElementType("signature");
+    setSignatureBoxVisible(true);
+  };
 
-      const addFieldToPdf = (label, value) => {
-        pdf.text(`${label}: ${value}`, 10, yPosition);
-        yPosition += 10;
-      };
-
-      // Add all form fields to the PDF
-      for (const [key, value] of Object.entries(formData)) {
-        addFieldToPdf(key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()), value);
-      }
-
-      // Read and add photos to the PDF
-      for (const photo of photos) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          const imgData = event.target.result;
-          pdf.addImage(imgData, 'JPEG', 10, yPosition, 180, 160); // Adjust the dimensions as needed
-          yPosition += 170; // Adjust the spacing as needed
-          if (yPosition > 260) { // Avoid overflow, add a new page if necessary
-            pdf.addPage();
-            yPosition = 10;
-          }
-        };
-        reader.readAsDataURL(photo);
-      }
-
-      // Wait for all images to be read and added to the PDF
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const pdfBlob = pdf.output('blob');
-
-      // Upload PDF to Firebase Storage
-      const reportId = uuidv4();
-      const pdfRef = ref(storage, `pdfs/${reportId}.pdf`);
-      await uploadBytes(pdfRef, pdfBlob);
-      const pdfUrl = await getDownloadURL(pdfRef);
-
-      // Save metadata to Firestore
-      await addDoc(collection(db, 'pdfReports'), {
-        id: reportId,
-        formData,
-        pdfUrl,
-        timestamp: new Date()
-      });
-
-      // Show success message
-      Swal.fire({
-        title: 'Form Successfully Submitted!',
-        text: 'Check Your Report Dashboard!!',
-        icon: 'success',
-        confirmButtonText: 'OK'
-      });
-
-      // Clear form data after successful submission
-      setFormData({
-        insuredName: '',
-        policyNumber: '',
-        address: '',
-        dateInspected: '',
-        yearBuilt: '',
-        ageOfHome: '',
-        roofAge: '',
-        clientNamePresent: '',
-        roofCovering: '',
-        waterService: '',
-        roofSlope: '',
-        describeConditions: '',
-        mainPanelType: '',
-        secondPanelType: '',
-        totalAmpsMainPanel: '',
-        totalAmpsSecondPanel: '',
-        mainPanelSufficient: '',
-        secondPanelSufficient: '',
-        copperWiring: 'No',
-        aluminumWiringType: 'No',
-        nmBxOrConduit: 'No',
-        blowingFuses: 'No',
-        trippingBreakers: 'No',
-        emptySockets: 'No',
-        looseWiring: 'No',
-        improperGrounding: 'No',
-        corrosion: 'No',
-        overFusing: 'No',
-        doubleTaps: 'No',
-        signatureName: '' // Reset signature name
-      });
-      setPhotos([]);
-      sigCanvas.current.clear();
-
-    } catch (error) {
-      // Show error message if something goes wrong
-      Swal.fire({
-        title: 'Error',
-        text: 'Something went wrong. Please try again later.',
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
+  const handleSignatureSubmit = () => {
+    if (signatureContent) {
+      setElements([...elements, { type: "signature", id: uuidv4(), content: signatureContent, x: 50, y: 50 }]);
+      setSignatureBoxVisible(false);
+      setSignatureContent('');
+      setSelectedElementType(null);
     }
   };
 
+  const handleXAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setElements([...elements, { type: "x", id: uuidv4(), content: "x", x: 50, y: 50, color: "black" }]);
+    setSelectedElementType(null);
+  };
+
+  const handleTickAdd = () => {
+    if (!pdf) {
+      setErrorPopup(true);
+      return;
+    }
+    setElements([...elements, { type: "tick", id: uuidv4(), content: "✔", x: 50, y: 50, color: "black", fontSize: 24 }]);
+    setSelectedElementType(null);
+  };
+
+  const handleElementDrag = (index, x, y) => {
+    const updatedElements = [...elements];
+    updatedElements[index].x = x;
+    updatedElements[index].y = y;
+    setElements(updatedElements);
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= numPages) {
+      setPageNumber(newPage);
+    }
+  };
+
+  const handleDropElement = (e) => {
+    e.preventDefault();
+    if (selectedElementType) {
+      const { offsetX, offsetY } = e.nativeEvent;
+      setElements([...elements, { type: selectedElementType, id: uuidv4(), x: offsetX, y: offsetY }]);
+      setSelectedElementType(null);
+    }
+  };
+
+  const handleDragStart = (e, type) => {
+    setSelectedElementType(type);
+  };
+
+  const handleContentChange = (index, content) => {
+    const updatedElements = [...elements];
+    updatedElements[index].content = content;
+    setElements(updatedElements);
+  };
+
+  const handleTextClick = (index) => {
+    const newText = prompt("Enter new text:", elements[index].content);
+    if (newText !== null) {
+      handleContentChange(index, newText);
+    }
+  };
+
+  const handleResize = (index, size) => {
+    const updatedElements = [...elements];
+    updatedElements[index].width = size.width;
+    updatedElements[index].height = size.height;
+    setElements(updatedElements);
+  };
+
+  const renderElements = () => {
+    return elements.map((element, index) => {
+      if (element.type === "text") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div
+              style={{
+                padding: "10px",
+                border: "1px solid rgba(0, 0, 0, 0.2)",
+                borderRadius: "4px",
+                background: "rgba(255, 255, 255, 0.7)",
+                cursor: "move",
+                maxWidth: "100%",
+                fontFamily: element.font,
+                color: element.color,
+                fontWeight: element.fontWeight,
+                fontSize: `${element.fontSize}px`,
+              }}
+              onDoubleClick={() => editMode && handleTextClick(index)}
+            >
+              {element.content}
+            </div>
+          </Draggable>
+        );
+      } else if (element.type === "shape") {
+        const shapeStyles = {
+          width: "50px",
+          height: "50px",
+          borderRadius: element.shape === "circle" ? "50%" : "0",
+          backgroundColor: element.shape === "triangle" ? "transparent" : "gray",
+          border: element.shape === "triangle" ? "25px solid transparent" : "none",
+          borderBottom: element.shape === "triangle" ? "50px solid gray" : "none",
+          cursor: "move",
+        };
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div style={shapeStyles}></div>
+          </Draggable>
+        );
+      } else if (element.type === "button") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <button
+              style={{
+                padding: "10px 20px",
+                background: "blue",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "move",
+                maxWidth: "100%",
+              }}
+              onDoubleClick={() => editMode && handleTextClick(index)}
+            >
+              {element.text}
+            </button>
+          </Draggable>
+        );
+      } else if (element.type === "image") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <ResizableBox
+              width={element.width}
+              height={element.height}
+              onResizeStop={(e, data) => handleResize(index, data.size)}
+              lockAspectRatio
+              minConstraints={[50, 50]}
+              maxConstraints={[500, 500]}
+            >
+              <img
+                src={element.src}
+                alt="Uploaded"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  cursor: "move",
+                }}
+              />
+            </ResizableBox>
+          </Draggable>
+        );
+      } else if (element.type === "date") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div
+              style={{
+                padding: "10px",
+                border: "1px solid rgba(0, 0, 0, 0.2)",
+                borderRadius: "4px",
+                background: "rgba(255, 255, 255, 0.7)",
+                cursor: "move",
+                maxWidth: "100%",
+              }}
+            >
+              {element.content}
+            </div>
+          </Draggable>
+        );
+      } else if (element.type === "signature") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div
+              style={{
+                padding: "10px",
+                border: "1px solid rgba(0, 0, 0, 0.2)",
+                borderRadius: "4px",
+                background: "rgba(255, 255, 255, 0.7)",
+                cursor: "move",
+                maxWidth: "100%",
+                fontFamily: "'Great Vibes', cursive",
+                fontSize: "32px",
+                fontWeight: "bold",
+              }}
+            >
+              {element.content}
+            </div>
+          </Draggable>
+        );
+      } else if (element.type === "x") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div
+              style={{
+                padding: "10px",
+                fontWeight: "bold",
+                color: element.color,
+                fontSize: "24px",
+                cursor: "move",
+              }}
+            >
+              {element.content}
+            </div>
+          </Draggable>
+        );
+      } else if (element.type === "tick") {
+        return (
+          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
+            <div
+              style={{
+                padding: "10px",
+                fontWeight: "bold",
+                color: element.color,
+                fontSize: `${element.fontSize}px`,
+                cursor: "move",
+              }}
+            >
+              {element.content}
+            </div>
+          </Draggable>
+        );
+      }
+      return null;
+    });
+  };
+
+  useEffect(() => {
+    if (pdfDoc && pdfPages.length > 0) {
+      const canvas = pdfCanvasRef.current;
+      const context = canvas.getContext("2d");
+      const page = pdfPages[pageNumber - 1];
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+      };
+      page.render(renderContext).promise.then(() => {
+        highlights.forEach((highlight) => {
+          context.fillStyle = "rgba(255, 255, 0, 0.5)";
+          context.fillRect(highlight.x, highlight.y, highlight.width, highlight.height);
+        });
+      });
+    }
+  }, [pdfPages, pageNumber, pdfDoc, highlights]);
+
+  const handleDrawingStart = () => {
+    setIsDrawing(!isDrawing);
+    setSelectedElementType(isDrawing ? null : "drawing");
+  };
+
+  const handleMouseDown = (e) => {
+    if (isHighlighting) {
+      const { offsetX, offsetY } = e.nativeEvent;
+      startX.current = offsetX;
+      startY.current = offsetY;
+    } else if (isDrawing) {
+      const canvas = pdfCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      const { offsetX, offsetY } = e.nativeEvent;
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
+      setDrawings([...drawings, { x: offsetX, y: offsetY, type: "begin" }]);
+    } else if (isErasing) {
+      const { offsetX, offsetY } = e.nativeEvent;
+      startX.current = offsetX;
+      startY.current = offsetY;
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isHighlighting) return;
+    if (!isDrawing) return;
+    const canvas = pdfCanvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const { offsetX, offsetY } = e.nativeEvent;
+    ctx.lineTo(offsetX, offsetY);
+    ctx.stroke();
+    setDrawings([...drawings, { x: offsetX, y: offsetY, type: "draw" }]);
+  };
+
+  const handleMouseUp = (e) => {
+    if (isHighlighting) {
+      const { offsetX, offsetY } = e.nativeEvent;
+      const width = offsetX - startX.current;
+      const height = offsetY - startY.current;
+      setHighlights([...highlights, { x: startX.current, y: startY.current, width, height }]);
+    } else if (isDrawing) {
+      const canvas = pdfCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      ctx.closePath();
+    } else if (isErasing) {
+      const { offsetX, offsetY } = e.nativeEvent;
+      const width = offsetX - startX.current;
+      const height = offsetY - startY.current;
+      eraseHighlightArea(startX.current, startY.current, width, height);
+    }
+  };
+
+  const eraseHighlightArea = (x, y, width, height) => {
+    const canvas = pdfCanvasRef.current;
+    const context = canvas.getContext("2d");
+    context.clearRect(x, y, width, height);
+    setHighlights(highlights.filter(highlight => !(
+      highlight.x >= x &&
+      highlight.y >= y &&
+      highlight.x + highlight.width <= x + width &&
+      highlight.y + highlight.height <= y + height
+    )));
+  };
+
+  const handleHighlightStart = () => {
+    setIsHighlighting(!isHighlighting);
+    setSelectedElementType(isHighlighting ? null : "highlighting");
+  };
+
+  const handleEraserStart = () => {
+    setIsErasing(!isErasing);
+    setSelectedElementType(isErasing ? null : "erasing");
+  };
+
+  const handleSave = async () => {
+    if (!pdfDoc) return;
+
+    const pdfDocLib = await PDFDocument.load(pdf);
+    const pages = pdfDocLib.getPages();
+    const page = pages[pageNumber - 1];
+    const { width, height } = page.getSize();
+
+    // Load the custom font
+    const fontUrl = "/path/to/NotoSans-Regular.ttf"; // Adjust the path to your font file
+    const fontBytes = await fetch(fontUrl).then((res) => res.arrayBuffer());
+    const customFont = await pdfDocLib.embedFont(fontBytes);
+
+    for (const element of elements) {
+      if (element.type === "text") {
+        const rgbColor = rgb(
+          parseInt(element.color.slice(1, 3), 16) / 255,
+          parseInt(element.color.slice(3, 5), 16) / 255,
+          parseInt(element.color.slice(5, 7), 16) / 255
+        );
+        page.drawText(element.content, {
+          x: element.x,
+          y: height - element.y - element.fontSize,
+          size: element.fontSize,
+          font: customFont,
+          color: rgbColor,
+          fontWeight: element.fontWeight,
+        });
+      } else if (element.type === "button") {
+        page.drawText(element.text, {
+          x: element.x,
+          y: height - element.y - 12,
+          size: 12,
+          font: customFont,
+          color: rgb(0, 0, 0),
+        });
+      } else if (element.type === "image") {
+        const imageBytes = await fetch(element.src).then(res => res.arrayBuffer());
+        const pdfImage = await pdfDocLib.embedPng(imageBytes);
+        page.drawImage(pdfImage, {
+          x: element.x,
+          y: height - element.y - element.height,
+          width: element.width,
+          height: element.height,
+        });
+      } else if (element.type === "date") {
+        page.drawText(element.content, {
+          x: element.x,
+          y: height - element.y - 12,
+          size: 12,
+          font: customFont,
+          color: rgb(0, 0, 0),
+        });
+      } else if (element.type === "signature") {
+        page.drawText(element.content, {
+          x: element.x,
+          y: height - element.y - 32,
+          size: 32,
+          font: customFont,
+          color: rgb(0, 0, 0),
+        });
+      } else if (element.type === "x") {
+        page.drawText(element.content, {
+          x: element.x,
+          y: height - element.y - 24,
+          size: 24,
+          font: customFont,
+          color: rgb(0, 0, 0),
+        });
+      } else if (element.type === "tick") {
+        page.drawText(element.content, {
+          x: element.x,
+          y: height - element.y - 24,
+          size: 24,
+          font: customFont,
+          color: rgb(0, 1, 0),
+        });
+      }
+    }
+
+    highlights.forEach((highlight) => {
+      page.drawRectangle({
+        x: highlight.x,
+        y: height - highlight.y - highlight.height,
+        width: highlight.width,
+        height: highlight.height,
+        color: rgb(1, 1, 0),
+        opacity: 0.5,
+      });
+    });
+
+    const pdfBytes = await pdfDocLib.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const file = new File([blob], 'modified.pdf', { type: 'application/pdf' });
+
+    // Save the modified PDF to Firebase storage
+    const storageRef = ref(storage, `modified_pdfs/${uuidv4()}.pdf`);
+    await uploadBytes(storageRef, file);
+
+    // Optionally, save the file metadata to Firestore
+    const fileUrl = await getDownloadURL(storageRef);
+    await addInspectionForm({ title: 'Modified PDF', fileUrl });
+
+    // Show the popup message
+    setSavePopup(true);
+  };
+
   return (
-    <div className="widget-container">
-      <h1 className="widget-heading"> ON SUBMIT CHECK THE REPORT DASHBOARD FOR GENERATED REPORT</h1>
-      <form onSubmit={handleSubmit}>
-        {/* PdfOverlayForm content */}
-        <div className="p-4 max-w-2xl mx-auto bg-white dark:bg-zinc-800 rounded-lg shadow-md">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-zinc-800 dark:text-zinc-200">PDF Overlay</h1>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <input type="text" placeholder="Address" name="address" className={sharedClasses.input} value={formData.address} onChange={handleInputChange} />
-              <input type="text" placeholder="Age of Home" name="ageOfHome" className={sharedClasses.input} value={formData.ageOfHome} onChange={handleInputChange} />
-              <input type="text" placeholder="Roof Age" name="roofAge" className={sharedClasses.input} value={formData.roofAge} onChange={handleInputChange} />
-              <input type="text" placeholder="Client Name Present" name="clientNamePresent" className={sharedClasses.input} value={formData.clientNamePresent} onChange={handleInputChange} />
-              <input type="text" placeholder="Roof Covering" name="roofCovering" className={sharedClasses.input} value={formData.roofCovering} onChange={handleInputChange} />
-              <input type="text" placeholder="Water Service" name="waterService" className={sharedClasses.input} value={formData.waterService} onChange={handleInputChange} />
-              <input type="text" placeholder="Roof Slope" name="roofSlope" className={sharedClasses.input} value={formData.roofSlope} onChange={handleInputChange} />
-            </div>
-            <div className="flex">
-              <div className="mr-4">
-                <h3 className="text-zinc-800 dark:text-zinc-200">Select one:</h3>
-                <label className="flex items-center">
-                  <input type="radio" name="roofSlopeType" value="Gable" checked={formData.roofSlopeType === 'Gable'} onChange={handleInputChange} className="mr-2" />
-                  Gable
-                </label>
-                <label className="flex items-center">
-                  <input type="radio" name="roofSlopeType" value="Hip" checked={formData.roofSlopeType === 'Hip'} onChange={handleInputChange} className="mr-2" />
-                  Hip
-                </label>
-                <label className="flex items-center">
-                  <input type="radio" name="roofSlopeType" value="Flat" checked={formData.roofSlopeType === 'Flat'} onChange={handleInputChange} className="mr-2" />
-                  Flat
-                </label>
-              </div>
-              <div>
-                <h3 className="text-zinc-800 dark:text-zinc-200">Select all that apply:</h3>
-                <label className="flex items-center">
-                  <input type="checkbox" name="roofSlopeType" value="Least" checked={formData.roofSlopeType === 'Least'} onChange={handleInputChange} className="mr-2" />
-                  Least
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" name="roofSlopeType" value="Moderate" checked={formData.roofSlopeType === 'Moderate'} onChange={handleInputChange} className="mr-2" />
-                  Moderate
-                </label>
-                <label className="flex items-center">
-                  <input type="checkbox" name="roofSlopeType" value="Most" checked={formData.roofSlopeType === 'Most'} onChange={handleInputChange} className="mr-2" />
-                  Most
-                </label>
-              </div>
-            </div>
-            <textarea placeholder="Describe Conditions" name="describeConditions" className={`${sharedClasses.input} h-32`} value={formData.describeConditions} onChange={handleInputChange}></textarea>
-            <div>
-              <label className={sharedClasses.label}>Photos</label>
-              <input type="file" multiple accept="image/*" onChange={handlePhotoChange} />
-            </div>
+    <div style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", color: "#333", maxWidth: "100%", overflowX: "hidden" }}>
+      <div style={{ display: "flex", padding: "10px", backgroundColor: "#f0f0f0", borderRadius: "5px", justifyContent: "space-around", marginBottom: "20px" }}>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleTextAdd} style={{ backgroundColor: selectedElementType === "text" ? "#1c7430" : "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="text" src="https://openui.fly.dev/openui/24x24.svg?text=T" />
+          <span className="text-xs">Text</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={() => handleShapeAdd("circle")} style={{ backgroundColor: selectedElementType === "shape" ? "#cc8400" : "#ffc107", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="circle" src="https://openui.fly.dev/openui/24x24.svg?text=⭕" />
+          <span className="text-xs">Circle</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleDateAdd} style={{ backgroundColor: selectedElementType === "date" ? "#5a6268" : "#6c757d", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="date" src="https://openui.fly.dev/openui/24x24.svg?text=📅" />
+          <span className="text-xs">Date</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleSignatureAdd} style={{ backgroundColor: selectedElementType === "signature" ? "#127c8d" : "#17a2b8", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="signature" src="https://openui.fly.dev/openui/24x24.svg?text=✒️" />
+          <span className="text-xs">Signature</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleXAdd} style={{ backgroundColor: selectedElementType === "x" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="x" src="https://openui.fly.dev/openui/24x24.svg?text=X" />
+          <span className="text-xs">X</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleTickAdd} style={{ backgroundColor: selectedElementType === "tick" ? "#1c7430" : "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="tick" src="https://openui.fly.dev/openui/24x24.svg?text=✔️" />
+          <span className="text-xs">Tick</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleImageAdd} style={{ backgroundColor: selectedElementType === "image" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="image" src="https://openui.fly.dev/openui/24x24.svg?text=🖼️" />
+          <span className="text-xs">Image</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleDrawingStart} style={{ backgroundColor: selectedElementType === "drawing" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="draw" src="https://openui.fly.dev/openui/24x24.svg?text=🖌️" />
+          <span className="text-xs">Draw</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleHighlightStart} style={{ backgroundColor: selectedElementType === "highlighting" ? "#cc8400" : "#ffc107", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="highlight" src="https://openui.fly.dev/openui/24x24.svg?text=🖍️" />
+          <span className="text-xs">Highlight</span>
+        </button>
+        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleSave} style={{ backgroundColor: "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
+          <img aria-hidden="true" alt="save" src="https://openui.fly.dev/openui/24x24.svg?text=💾" />
+          <span className="text-xs">Save the modified PDF</span>
+        </button>
+        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} ref={imageInputRef} />
+      </div>
+      <div {...getRootProps()} style={{ border: "2px dashed #ccc", borderRadius: "5px", padding: "30px", textAlign: "center", margin: "20px 0", backgroundColor: "#e9ecef", color: "#6c757d" }}>
+        <input {...getInputProps()} />
+        <p style={{ margin: 0 }}>Drag & drop a PDF here, or click to select one</p>
+      </div>
+      {pdf && (
+        <div style={{ position: "relative", margin: "0 auto", maxWidth: "100%", overflow: "hidden" }}>
+          <canvas id="pdf-render" ref={pdfCanvasRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} />
+          <div className="overlay-elements" style={{ position: "absolute", top: 0, left: 0, maxWidth: "100%" }} onClick={handleDropElement}>
+            {renderElements()}
           </div>
         </div>
-
-        {/* InspectionForm content */}
-        <div className="p-4 max-w-2xl mx-auto bg-white dark:bg-zinc-800 rounded-lg shadow-md mt-8">
-          <div className={sharedClasses.border}>
-            <h2 className={sharedClasses.font}>Inspection Form</h2>
-            <div className={sharedClasses.grid}>
-              <input type="text" placeholder="Insured Name" name="insuredName" className={sharedClasses.input} value={formData.insuredName} onChange={handleInputChange} />
-              <input type="text" placeholder="Policy Number" name="policyNumber" className={sharedClasses.input} value={formData.policyNumber} onChange={handleInputChange} />
-              <input type="text" placeholder="Date Inspected" name="dateInspected" className={sharedClasses.input} value={formData.dateInspected} onChange={handleInputChange} />
-              <input type="text" placeholder="Year Built" name="yearBuilt" className={sharedClasses.input} value={formData.yearBuilt} onChange={handleInputChange} />
-            </div>
-          </div>
-
-          <div className={sharedClasses.border}>
-            <h3 className={sharedClasses.font}>Electric Panel Information</h3>
-            <div className={sharedClasses.grid3}>
-              <input type="text" placeholder="Type" name="mainPanelType" className={sharedClasses.input} value={formData.mainPanelType} onChange={handleInputChange} />
-              <input type="text" placeholder="Type" name="secondPanelType" className={sharedClasses.input} value={formData.secondPanelType} onChange={handleInputChange} />
-            </div>
-            <div className={sharedClasses.grid}>
-              <input type="text" placeholder="Total Amps" name="totalAmpsMainPanel" className={sharedClasses.input} value={formData.totalAmpsMainPanel} onChange={handleInputChange} />
-              <input type="text" placeholder="Total Amps" name="totalAmpsSecondPanel" className={sharedClasses.input} value={formData.totalAmpsSecondPanel} onChange={handleInputChange} />
-              <input type="text" placeholder="Sufficient?" name="mainPanelSufficient" className={sharedClasses.input} value={formData.mainPanelSufficient} onChange={handleInputChange} />
-              <input type="text" placeholder="Sufficient?" name="secondPanelSufficient" className={sharedClasses.input} value={formData.secondPanelSufficient} onChange={handleInputChange} />
-            </div>
-          </div>
-
-          <div className={sharedClasses.border}>
-            <h4 className={sharedClasses.font}>Electric Information</h4>
-            <div>
-              <ul>
-                <CheckboxItem id="copperWiring" label="Copper Wiring" checked={formData.copperWiring === 'Yes'} onChange={() => setFormData({ ...formData, copperWiring: formData.copperWiring === 'Yes' ? 'No' : 'Yes' })} />
-                <CheckboxItem id="aluminumWiringType" label="Aluminum Wiring Type" checked={formData.aluminumWiringType === 'Yes'} onChange={() => setFormData({ ...formData, aluminumWiringType: formData.aluminumWiringType === 'Yes' ? 'No' : 'Yes' })} />
-                <CheckboxItem id="nmBxOrConduit" label="NM-BX or Conduit" checked={formData.nmBxOrConduit === 'Yes'} onChange={() => setFormData({ ...formData, nmBxOrConduit: formData.nmBxOrConduit === 'Yes' ? 'No' : 'Yes' })} />
-              </ul>
-            </div>
-          </div>
-
-          <div className={sharedClasses.border}>
-            <h5 className={sharedClasses.font}>Common Issues</h5>
-            <ul>
-              <CheckboxItem id="blowingFuses" label="Blowing Fuses" checked={formData.blowingFuses === 'Yes'} onChange={() => setFormData({ ...formData, blowingFuses: formData.blowingFuses === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="trippingBreakers" label="Tripping Breakers" checked={formData.trippingBreakers === 'Yes'} onChange={() => setFormData({ ...formData, trippingBreakers: formData.trippingBreakers === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="emptySockets" label="Empty Sockets" checked={formData.emptySockets === 'Yes'} onChange={() => setFormData({ ...formData, emptySockets: formData.emptySockets === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="looseWiring" label="Loose Wiring" checked={formData.looseWiring === 'Yes'} onChange={() => setFormData({ ...formData, looseWiring: formData.looseWiring === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="improperGrounding" label="Improper Grounding" checked={formData.improperGrounding === 'Yes'} onChange={() => setFormData({ ...formData, improperGrounding: formData.improperGrounding === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="corrosion" label="Corrosion" checked={formData.corrosion === 'Yes'} onChange={() => setFormData({ ...formData, corrosion: formData.corrosion === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="overFusing" label="Overfusing" checked={formData.overFusing === 'Yes'} onChange={() => setFormData({ ...formData, overFusing: formData.overFusing === 'Yes' ? 'No' : 'Yes' })} />
-              <CheckboxItem id="doubleTaps" label="Double Taps" checked={formData.doubleTaps === 'Yes'} onChange={() => setFormData({ ...formData, doubleTaps: formData.doubleTaps === 'Yes' ? 'No' : 'Yes' })} />
-            </ul>
-          </div>
-
-          <div className={sharedClasses.border}>
-            <label className={sharedClasses.label}>Signature</label>
-            <div className="signature-container">
-              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ width: 500, height: 200, className: 'signature-canvas' }} />
-              <button type="button" className="btn-clear" onClick={clearSignature}>Clear</button>
-              <input type="text" placeholder="Signature Name" name="signatureName" className={sharedClasses.input} value={formData.signatureName} onChange={handleInputChange} /> {/* Signature name field */}
-            </div>
-            <div>
-              <label className={sharedClasses.label}>Upload Signature</label>
-              <input type="file" accept="image/*" onChange={handleUploadSignature} />
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 max-w-2xl mx-auto bg-white dark:bg-zinc-800 rounded-lg shadow-md mt-8">
-          <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-           Click Submit
+      )}
+      {textBoxVisible && (
+        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px", background: "#fff", border: "1px solid #ccc", borderRadius: "4px", zIndex: 1000 }}>
+          <input
+            type="text"
+            value={textBoxContent}
+            onChange={(e) => setTextBoxContent(e.target.value)}
+            style={{ marginRight: "10px" }}
+          />
+          <select value={textBoxFont} onChange={(e) => setTextBoxFont(e.target.value)} style={{ marginRight: "10px" }}>
+            <option value="Arial">Arial</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+          </select>
+          <select value={textBoxFontWeight} onChange={(e) => setTextBoxFontWeight(e.target.value)} style={{ marginRight: "10px" }}>
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+          </select>
+          <input
+            type="number"
+            value={textBoxFontSize}
+            onChange={(e) => setTextBoxFontSize(parseInt(e.target.value))}
+            style={{ marginRight: "10px" }}
+            min="8"
+            max="72"
+          />
+          <input
+            type="color"
+            value={textBoxColor}
+            onChange={(e) => setTextBoxColor(e.target.value)}
+            style={{ marginRight: "10px" }}
+          />
+          <button onClick={handleTextSubmit} style={{ padding: "5px 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+            Add Text
+          </button>
+          <button onClick={() => setTextBoxVisible(false)} style={{ padding: "5px 10px", background: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", marginLeft: "10px" }}>
+            Cancel
           </button>
         </div>
-      </form>
+      )}
+      {signatureBoxVisible && (
+        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px", background: "#fff", border: "1px solid #ccc", borderRadius: "4px", zIndex: 1000 }}>
+          <input
+            type="text"
+            value={signatureContent}
+            onChange={(e) => setSignatureContent(e.target.value)}
+            style={{ marginRight: "10px" }}
+          />
+          <button onClick={handleSignatureSubmit} style={{ padding: "5px 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+            Add Signature
+          </button>
+          <button onClick={() => setSignatureBoxVisible(false)} style={{ padding: "5px 10px", background: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", marginLeft: "10px" }}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {numPages && (
+        <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+          <button
+            style={{ padding: "10px 20px", margin: "0 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+            disabled={pageNumber <= 1}
+            onClick={() => handlePageChange(pageNumber - 1)}
+          >
+            Previous
+          </button>
+          <p>Page {pageNumber} of {numPages}</p>
+          <button
+            style={{ padding: "10px 20px", margin: "0 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+            disabled={pageNumber >= numPages}
+            onClick={() => handlePageChange(pageNumber + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
+      {selectedElementType && (
+        <div style={{ position: "fixed", bottom: "10px", left: "50%", transform: "translateX(-50%)", padding: "10px", background: "#333", color: "#fff", borderRadius: "4px" }}>
+          {selectedElementType === "text" ? "Drag and drop to add a text box" : `Click on the canvas to add ${selectedElementType}`}
+        </div>
+      )}
+      {pdfError && <div style={{ color: "red", textAlign: "center", marginTop: "10px" }}>{pdfError}</div>}
+      {errorPopup && (
+        <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", background: "#6c757d", color: "#fff", borderRadius: "4px", zIndex: 1000 }}>
+          <p style={{ margin: 0 }}>Please upload a PDF first.</p>
+        </div>
+      )}
+      {savePopup && (
+        <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", background: "#28a745", color: "#fff", borderRadius: "4px", zIndex: 1000 }}>
+          <p style={{ margin: 0 }}>PDF saved successfully!</p>
+        </div>
+      )}
     </div>
   );
 };
 
-export default PdfComponent;
+export default PdfComponents;
+
