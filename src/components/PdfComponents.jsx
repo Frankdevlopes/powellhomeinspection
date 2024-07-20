@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import Draggable from "react-draggable";
-import { ResizableBox } from "react-resizable";
-import "react-resizable/css/styles.css";
 import { v4 as uuidv4 } from "uuid";
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { addInspectionForm } from "../auth/firebase"; // Adjusted import path
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import Firebase storage
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import * as fontkit from "fontkit";
+import { storage, db } from "../auth/firebase";
+import TextBox from "./TextBox";
+import SignatureBox from "./SignatureBox";
+import Toolbar from "./Toolbar";
+import PdfViewer from "./PdfViewer";
 
 const PdfComponents = () => {
   const [pdf, setPdf] = useState(null);
@@ -39,8 +40,6 @@ const PdfComponents = () => {
   const pdfCanvasRef = useRef(null);
   const startX = useRef(0);
   const startY = useRef(0);
-
-  const storage = getStorage(); // Initialize storage here
 
   useEffect(() => {
     const loadFont = () => {
@@ -241,7 +240,7 @@ const PdfComponents = () => {
     }
   };
 
-  const handleDropElement = (e) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     if (selectedElementType) {
       const { offsetX, offsetY } = e.nativeEvent;
@@ -274,186 +273,19 @@ const PdfComponents = () => {
     setElements(updatedElements);
   };
 
-  const renderElements = () => {
-    return elements.map((element, index) => {
-      if (element.type === "text") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div
-              style={{
-                padding: "10px",
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                borderRadius: "4px",
-                background: "rgba(255, 255, 255, 0.7)",
-                cursor: "move",
-                maxWidth: "100%",
-                fontFamily: element.font,
-                color: element.color,
-                fontWeight: element.fontWeight,
-                fontSize: `${element.fontSize}px`,
-              }}
-              onDoubleClick={() => editMode && handleTextClick(index)}
-            >
-              {element.content}
-            </div>
-          </Draggable>
-        );
-      } else if (element.type === "shape") {
-        const shapeStyles = {
-          width: "50px",
-          height: "50px",
-          borderRadius: element.shape === "circle" ? "50%" : "0",
-          backgroundColor: element.shape === "triangle" ? "transparent" : "gray",
-          border: element.shape === "triangle" ? "25px solid transparent" : "none",
-          borderBottom: element.shape === "triangle" ? "50px solid gray" : "none",
-          cursor: "move",
-        };
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div style={shapeStyles}></div>
-          </Draggable>
-        );
-      } else if (element.type === "button") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <button
-              style={{
-                padding: "10px 20px",
-                background: "blue",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "move",
-                maxWidth: "100%",
-              }}
-              onDoubleClick={() => editMode && handleTextClick(index)}
-            >
-              {element.text}
-            </button>
-          </Draggable>
-        );
-      } else if (element.type === "image") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <ResizableBox
-              width={element.width}
-              height={element.height}
-              onResizeStop={(e, data) => handleResize(index, data.size)}
-              lockAspectRatio
-              minConstraints={[50, 50]}
-              maxConstraints={[500, 500]}
-            >
-              <img
-                src={element.src}
-                alt="Uploaded"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  cursor: "move",
-                }}
-              />
-            </ResizableBox>
-          </Draggable>
-        );
-      } else if (element.type === "date") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div
-              style={{
-                padding: "10px",
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                borderRadius: "4px",
-                background: "rgba(255, 255, 255, 0.7)",
-                cursor: "move",
-                maxWidth: "100%",
-              }}
-            >
-              {element.content}
-            </div>
-          </Draggable>
-        );
-      } else if (element.type === "signature") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div
-              style={{
-                padding: "10px",
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                borderRadius: "4px",
-                background: "rgba(255, 255, 255, 0.7)",
-                cursor: "move",
-                maxWidth: "100%",
-                fontFamily: "'Great Vibes', cursive",
-                fontSize: "32px",
-                fontWeight: "bold",
-              }}
-            >
-              {element.content}
-            </div>
-          </Draggable>
-        );
-      } else if (element.type === "x") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div
-              style={{
-                padding: "10px",
-                fontWeight: "bold",
-                color: element.color,
-                fontSize: "24px",
-                cursor: "move",
-              }}
-            >
-              {element.content}
-            </div>
-          </Draggable>
-        );
-      } else if (element.type === "tick") {
-        return (
-          <Draggable key={element.id} defaultPosition={{ x: element.x, y: element.y }} onDrag={(e, data) => handleElementDrag(index, data.x, data.y)}>
-            <div
-              style={{
-                padding: "10px",
-                fontWeight: "bold",
-                color: element.color,
-                fontSize: `${element.fontSize}px`,
-                cursor: "move",
-              }}
-            >
-              {element.content}
-            </div>
-          </Draggable>
-        );
-      }
-      return null;
-    });
-  };
-
-  useEffect(() => {
-    if (pdfDoc && pdfPages.length > 0) {
-      const canvas = pdfCanvasRef.current;
-      const context = canvas.getContext("2d");
-      const page = pdfPages[pageNumber - 1];
-      const scale = 1.5;
-      const viewport = page.getViewport({ scale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport,
-      };
-      page.render(renderContext).promise.then(() => {
-        highlights.forEach((highlight) => {
-          context.fillStyle = "rgba(255, 255, 0, 0.5)";
-          context.fillRect(highlight.x, highlight.y, highlight.width, highlight.height);
-        });
-      });
-    }
-  }, [pdfPages, pageNumber, pdfDoc, highlights]);
-
   const handleDrawingStart = () => {
     setIsDrawing(!isDrawing);
     setSelectedElementType(isDrawing ? null : "drawing");
+  };
+
+  const handleHighlightStart = () => {
+    setIsHighlighting(!isHighlighting);
+    setSelectedElementType(isHighlighting ? null : "highlighting");
+  };
+
+  const handleEraserStart = () => {
+    setIsErasing(!isErasing);
+    setSelectedElementType(isErasing ? null : "erasing");
   };
 
   const handleMouseDown = (e) => {
@@ -516,30 +348,20 @@ const PdfComponents = () => {
     )));
   };
 
-  const handleHighlightStart = () => {
-    setIsHighlighting(!isHighlighting);
-    setSelectedElementType(isHighlighting ? null : "highlighting");
-  };
-
-  const handleEraserStart = () => {
-    setIsErasing(!isErasing);
-    setSelectedElementType(isErasing ? null : "erasing");
-  };
-
   const handleSave = async () => {
     if (!pdfDoc) return;
 
     const pdfDocLib = await PDFDocument.load(pdf);
+    pdfDocLib.registerFontkit(fontkit);
     const pages = pdfDocLib.getPages();
     const page = pages[pageNumber - 1];
     const { width, height } = page.getSize();
 
-    // Load the custom font
-    const fontUrl = "/path/to/NotoSans-Regular.ttf"; // Adjust the path to your font file
-    const fontBytes = await fetch(fontUrl).then((res) => res.arrayBuffer());
-    const customFont = await pdfDocLib.embedFont(fontBytes);
+    const font = await pdfDocLib.embedFont(StandardFonts.Helvetica);
 
     for (const element of elements) {
+      const yPos = height - element.y; // Correct y position for PDF rendering
+
       if (element.type === "text") {
         const rgbColor = rgb(
           parseInt(element.color.slice(1, 3), 16) / 255,
@@ -548,41 +370,48 @@ const PdfComponents = () => {
         );
         page.drawText(element.content, {
           x: element.x,
-          y: height - element.y - element.fontSize,
+          y: yPos - element.fontSize,
           size: element.fontSize,
-          font: customFont,
+          font,
           color: rgbColor,
           fontWeight: element.fontWeight,
         });
-      } else if (element.type === "button") {
-        page.drawText(element.text, {
-          x: element.x,
-          y: height - element.y - 12,
-          size: 12,
-          font: customFont,
-          color: rgb(0, 0, 0),
-        });
+      } else if (element.type === "shape") {
+        // Handle shapes
+        if (element.shape === "circle") {
+          page.drawEllipse({
+            x: element.x + element.width / 2,
+            y: yPos - element.height / 2,
+            xScale: element.width / 2,
+            yScale: element.height / 2,
+            borderColor: rgb(0.5, 0.5, 0.5),
+            borderWidth: 2,
+          });
+        }
+        // Add more shapes as needed
       } else if (element.type === "image") {
         const imageBytes = await fetch(element.src).then(res => res.arrayBuffer());
         const pdfImage = await pdfDocLib.embedPng(imageBytes);
         page.drawImage(pdfImage, {
           x: element.x,
-          y: height - element.y - element.height,
+          y: yPos - element.height,
           width: element.width,
           height: element.height,
         });
       } else if (element.type === "date") {
         page.drawText(element.content, {
           x: element.x,
-          y: height - element.y - 12,
+          y: yPos - 12,
           size: 12,
-          font: customFont,
+          font,
           color: rgb(0, 0, 0),
         });
       } else if (element.type === "signature") {
+        const fontBytes = await fetch('https://url-to-great-vibes-font-file.ttf').then(res => res.arrayBuffer());
+        const customFont = await pdfDocLib.embedFont(fontBytes);
         page.drawText(element.content, {
           x: element.x,
-          y: height - element.y - 32,
+          y: yPos - 32,
           size: 32,
           font: customFont,
           color: rgb(0, 0, 0),
@@ -590,17 +419,17 @@ const PdfComponents = () => {
       } else if (element.type === "x") {
         page.drawText(element.content, {
           x: element.x,
-          y: height - element.y - 24,
+          y: yPos - 24,
           size: 24,
-          font: customFont,
+          font,
           color: rgb(0, 0, 0),
         });
       } else if (element.type === "tick") {
         page.drawText(element.content, {
           x: element.x,
-          y: height - element.y - 24,
+          y: yPos - 24,
           size: 24,
-          font: customFont,
+          font,
           color: rgb(0, 1, 0),
         });
       }
@@ -622,12 +451,12 @@ const PdfComponents = () => {
     const file = new File([blob], 'modified.pdf', { type: 'application/pdf' });
 
     // Save the modified PDF to Firebase storage
-    const storageRef = ref(storage, `modified_pdfs/${uuidv4()}.pdf`);
-    await uploadBytes(storageRef, file);
+    const storageRef = storage.ref();
+    const fileRef = storageRef.child(`modified_pdfs/${uuidv4()}.pdf`);
+    await fileRef.put(blob);
 
     // Optionally, save the file metadata to Firestore
-    const fileUrl = await getDownloadURL(storageRef);
-    await addInspectionForm({ title: 'Modified PDF', fileUrl });
+    await db.collection('inspectionForms').add({ title: 'Modified PDF', fileUrl: await fileRef.getDownloadURL() });
 
     // Show the popup message
     setSavePopup(true);
@@ -635,117 +464,65 @@ const PdfComponents = () => {
 
   return (
     <div style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", color: "#333", maxWidth: "100%", overflowX: "hidden" }}>
-      <div style={{ display: "flex", padding: "10px", backgroundColor: "#f0f0f0", borderRadius: "5px", justifyContent: "space-around", marginBottom: "20px" }}>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleTextAdd} style={{ backgroundColor: selectedElementType === "text" ? "#1c7430" : "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="text" src="https://openui.fly.dev/openui/24x24.svg?text=T" />
-          <span className="text-xs">Text</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={() => handleShapeAdd("circle")} style={{ backgroundColor: selectedElementType === "shape" ? "#cc8400" : "#ffc107", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="circle" src="https://openui.fly.dev/openui/24x24.svg?text=⭕" />
-          <span className="text-xs">Circle</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleDateAdd} style={{ backgroundColor: selectedElementType === "date" ? "#5a6268" : "#6c757d", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="date" src="https://openui.fly.dev/openui/24x24.svg?text=📅" />
-          <span className="text-xs">Date</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleSignatureAdd} style={{ backgroundColor: selectedElementType === "signature" ? "#127c8d" : "#17a2b8", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="signature" src="https://openui.fly.dev/openui/24x24.svg?text=✒️" />
-          <span className="text-xs">Signature</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleXAdd} style={{ backgroundColor: selectedElementType === "x" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="x" src="https://openui.fly.dev/openui/24x24.svg?text=X" />
-          <span className="text-xs">X</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleTickAdd} style={{ backgroundColor: selectedElementType === "tick" ? "#1c7430" : "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="tick" src="https://openui.fly.dev/openui/24x24.svg?text=✔️" />
-          <span className="text-xs">Tick</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleImageAdd} style={{ backgroundColor: selectedElementType === "image" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="image" src="https://openui.fly.dev/openui/24x24.svg?text=🖼️" />
-          <span className="text-xs">Image</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleDrawingStart} style={{ backgroundColor: selectedElementType === "drawing" ? "#a71d2a" : "#dc3545", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="draw" src="https://openui.fly.dev/openui/24x24.svg?text=🖌️" />
-          <span className="text-xs">Draw</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleHighlightStart} style={{ backgroundColor: selectedElementType === "highlighting" ? "#cc8400" : "#ffc107", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="highlight" src="https://openui.fly.dev/openui/24x24.svg?text=🖍️" />
-          <span className="text-xs">Highlight</span>
-        </button>
-        <button className="flex flex-col items-center p-2 hover:bg-muted rounded" onClick={handleSave} style={{ backgroundColor: "#28a745", color: "#fff", border: "none", borderRadius: "4px", padding: "10px", cursor: "pointer" }}>
-          <img aria-hidden="true" alt="save" src="https://openui.fly.dev/openui/24x24.svg?text=💾" />
-          <span className="text-xs">Save the modified PDF</span>
-        </button>
-        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} ref={imageInputRef} />
-      </div>
+      <Toolbar
+        handleTextAdd={handleTextAdd}
+        handleShapeAdd={handleShapeAdd}
+        handleDateAdd={handleDateAdd}
+        handleSignatureAdd={handleSignatureAdd}
+        handleXAdd={handleXAdd}
+        handleTickAdd={handleTickAdd}
+        handleImageAdd={handleImageAdd}
+        handleDrawingStart={handleDrawingStart}
+        handleHighlightStart={handleHighlightStart}
+        handleEraserStart={handleEraserStart}
+        handleSave={handleSave}
+        selectedElementType={selectedElementType}
+        imageInputRef={imageInputRef}
+        handleImageUpload={handleImageUpload}
+      />
       <div {...getRootProps()} style={{ border: "2px dashed #ccc", borderRadius: "5px", padding: "30px", textAlign: "center", margin: "20px 0", backgroundColor: "#e9ecef", color: "#6c757d" }}>
         <input {...getInputProps()} />
         <p style={{ margin: 0 }}>Drag & drop a PDF here, or click to select one</p>
       </div>
       {pdf && (
-        <div style={{ position: "relative", margin: "0 auto", maxWidth: "100%", overflow: "hidden" }}>
-          <canvas id="pdf-render" ref={pdfCanvasRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} />
-          <div className="overlay-elements" style={{ position: "absolute", top: 0, left: 0, maxWidth: "100%" }} onClick={handleDropElement}>
-            {renderElements()}
-          </div>
-        </div>
+        <PdfViewer
+          pdfPages={pdfPages}
+          pageNumber={pageNumber}
+          pdfDoc={pdfDoc}
+          highlights={highlights}
+          drawings={drawings}
+          isDrawing={isDrawing}
+          isHighlighting={isHighlighting}
+          isErasing={isErasing}
+          handleMouseDown={handleMouseDown}
+          handleMouseMove={handleMouseMove}
+          handleMouseUp={handleMouseUp}
+          pdfCanvasRef={pdfCanvasRef}
+        />
       )}
       {textBoxVisible && (
-        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px", background: "#fff", border: "1px solid #ccc", borderRadius: "4px", zIndex: 1000 }}>
-          <input
-            type="text"
-            value={textBoxContent}
-            onChange={(e) => setTextBoxContent(e.target.value)}
-            style={{ marginRight: "10px" }}
-          />
-          <select value={textBoxFont} onChange={(e) => setTextBoxFont(e.target.value)} style={{ marginRight: "10px" }}>
-            <option value="Arial">Arial</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Verdana">Verdana</option>
-          </select>
-          <select value={textBoxFontWeight} onChange={(e) => setTextBoxFontWeight(e.target.value)} style={{ marginRight: "10px" }}>
-            <option value="normal">Normal</option>
-            <option value="bold">Bold</option>
-          </select>
-          <input
-            type="number"
-            value={textBoxFontSize}
-            onChange={(e) => setTextBoxFontSize(parseInt(e.target.value))}
-            style={{ marginRight: "10px" }}
-            min="8"
-            max="72"
-          />
-          <input
-            type="color"
-            value={textBoxColor}
-            onChange={(e) => setTextBoxColor(e.target.value)}
-            style={{ marginRight: "10px" }}
-          />
-          <button onClick={handleTextSubmit} style={{ padding: "5px 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-            Add Text
-          </button>
-          <button onClick={() => setTextBoxVisible(false)} style={{ padding: "5px 10px", background: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", marginLeft: "10px" }}>
-            Cancel
-          </button>
-        </div>
+        <TextBox
+          textBoxContent={textBoxContent}
+          setTextBoxContent={setTextBoxContent}
+          textBoxFont={textBoxFont}
+          setTextBoxFont={setTextBoxFont}
+          textBoxFontWeight={textBoxFontWeight}
+          setTextBoxFontWeight={setTextBoxFontWeight}
+          textBoxFontSize={textBoxFontSize}
+          setTextBoxFontSize={setTextBoxFontSize}
+          textBoxColor={textBoxColor}
+          setTextBoxColor={setTextBoxColor}
+          handleTextSubmit={handleTextSubmit}
+          setTextBoxVisible={setTextBoxVisible}
+        />
       )}
       {signatureBoxVisible && (
-        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px", background: "#fff", border: "1px solid #ccc", borderRadius: "4px", zIndex: 1000 }}>
-          <input
-            type="text"
-            value={signatureContent}
-            onChange={(e) => setSignatureContent(e.target.value)}
-            style={{ marginRight: "10px" }}
-          />
-          <button onClick={handleSignatureSubmit} style={{ padding: "5px 10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-            Add Signature
-          </button>
-          <button onClick={() => setSignatureBoxVisible(false)} style={{ padding: "5px 10px", background: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", marginLeft: "10px" }}>
-            Cancel
-          </button>
-        </div>
+        <SignatureBox
+          signatureContent={signatureContent}
+          setSignatureContent={setSignatureContent}
+          handleSignatureSubmit={handleSignatureSubmit}
+          setSignatureBoxVisible={setSignatureBoxVisible}
+        />
       )}
       {numPages && (
         <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
@@ -778,7 +555,7 @@ const PdfComponents = () => {
         </div>
       )}
       {savePopup && (
-        <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", background: "#28a745", color: "#fff", borderRadius: "4px", zIndex: 1000 }}>
+        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", background: "#28a745", color: "#fff", borderRadius: "4px", zIndex: 1000 }}>
           <p style={{ margin: 0 }}>PDF saved successfully!</p>
         </div>
       )}
@@ -787,4 +564,3 @@ const PdfComponents = () => {
 };
 
 export default PdfComponents;
-
