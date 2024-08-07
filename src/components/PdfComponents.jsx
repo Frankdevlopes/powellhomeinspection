@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { v4 as uuidv4 } from "uuid";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 import * as fontkit from "fontkit";
 import { storage, db } from "../auth/firebase";
 import TextBox from "./TextBox";
 import SignatureBox from "./SignatureBox";
 import Toolbar from "./Toolbar";
 import PdfViewer from "./PdfViewer";
+import Draggable from "react-draggable";
+import { FaInfoCircle } from "react-icons/fa";
 
 const PdfComponents = () => {
   const [pdf, setPdf] = useState(null);
@@ -38,6 +40,8 @@ const PdfComponents = () => {
   const [savePopup, setSavePopup] = useState(false);
   const imageInputRef = useRef(null);
   const pdfCanvasRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
+  const pdfContainerRef = useRef(null);
   const startX = useRef(0);
   const startY = useRef(0);
 
@@ -145,7 +149,7 @@ const PdfComponents = () => {
 
   const handleTextSubmit = () => {
     if (textBoxContent) {
-      setElements([...elements, { type: "text", id: uuidv4(), content: textBoxContent, x: 50, y: 50, font: textBoxFont, color: textBoxColor, fontWeight: textBoxFontWeight, fontSize: textBoxFontSize }]);
+      setElements([...elements, { type: "text", id: uuidv4(), content: textBoxContent || 'Type here', x: 50, y: 50, font: textBoxFont, color: textBoxColor, fontWeight: textBoxFontWeight, fontSize: textBoxFontSize, page: pageNumber }]);
       setTextBoxVisible(false);
       setTextBoxContent('');
       setSelectedElementType(null);
@@ -157,7 +161,7 @@ const PdfComponents = () => {
       setErrorPopup(true);
       return;
     }
-    setElements([...elements, { type: "shape", id: uuidv4(), shape, x: 50, y: 50 }]);
+    setElements([...elements, { type: "shape", id: uuidv4(), shape, x: 50, y: 50, width: 30, height: 30, color: 'black', page: pageNumber }]);
     setSelectedElementType(null);
   };
 
@@ -175,7 +179,7 @@ const PdfComponents = () => {
     const reader = new FileReader();
     reader.onload = () => {
       setImageFile(reader.result);
-      setElements([...elements, { type: "image", id: uuidv4(), src: reader.result, x: 50, y: 50, width: 100, height: 100 }]);
+      setElements([...elements, { type: "image", id: uuidv4(), src: reader.result, x: 50, y: 50, width: 100, height: 100, page: pageNumber }]);
       setSelectedElementType(null);
     };
     reader.readAsDataURL(file);
@@ -187,7 +191,7 @@ const PdfComponents = () => {
       return;
     }
     const currentDate = new Date().toLocaleDateString();
-    setElements([...elements, { type: "date", id: uuidv4(), content: currentDate, x: 50, y: 50 }]);
+    setElements([...elements, { type: "date", id: uuidv4(), content: currentDate, x: 50, y: 50, fontSize: 14, font: "Helvetica", color: "#000000", fontWeight: 'bold', page: pageNumber }]);
     setSelectedElementType(null);
   };
 
@@ -202,7 +206,7 @@ const PdfComponents = () => {
 
   const handleSignatureSubmit = () => {
     if (signatureContent) {
-      setElements([...elements, { type: "signature", id: uuidv4(), content: signatureContent, x: 50, y: 50 }]);
+      setElements([...elements, { type: "signature", id: uuidv4(), content: signatureContent || 'Type here', x: 50, y: 50, font: 'Great Vibes', fontSize: 32, color: '#000000', page: pageNumber }]);
       setSignatureBoxVisible(false);
       setSignatureContent('');
       setSelectedElementType(null);
@@ -214,7 +218,7 @@ const PdfComponents = () => {
       setErrorPopup(true);
       return;
     }
-    setElements([...elements, { type: "x", id: uuidv4(), content: "x", x: 50, y: 50, color: "black" }]);
+    setElements([...elements, { type: "x", id: uuidv4(), content: "x", x: 50, y: 50, color: "black", fontSize: 24, font: 'Helvetica', page: pageNumber }]);
     setSelectedElementType(null);
   };
 
@@ -223,7 +227,7 @@ const PdfComponents = () => {
       setErrorPopup(true);
       return;
     }
-    setElements([...elements, { type: "tick", id: uuidv4(), content: "✔", x: 50, y: 50, color: "black", fontSize: 24 }]);
+    setElements([...elements, { type: "tick", id: uuidv4(), content: "✔", x: 50, y: 50, color: "black", fontSize: 24, font: 'Helvetica', page: pageNumber }]);
     setSelectedElementType(null);
   };
 
@@ -244,7 +248,7 @@ const PdfComponents = () => {
     e.preventDefault();
     if (selectedElementType) {
       const { offsetX, offsetY } = e.nativeEvent;
-      setElements([...elements, { type: selectedElementType, id: uuidv4(), x: offsetX, y: offsetY }]);
+      setElements([...elements, { type: selectedElementType, id: uuidv4(), x: offsetX, y: offsetY, page: pageNumber }]);
       setSelectedElementType(null);
     }
   };
@@ -294,28 +298,40 @@ const PdfComponents = () => {
       startX.current = offsetX;
       startY.current = offsetY;
     } else if (isDrawing) {
-      const canvas = pdfCanvasRef.current;
+      const canvas = overlayCanvasRef.current;
       const ctx = canvas.getContext("2d");
       const { offsetX, offsetY } = e.nativeEvent;
       ctx.beginPath();
       ctx.moveTo(offsetX, offsetY);
-      setDrawings([...drawings, { x: offsetX, y: offsetY, type: "begin" }]);
+      setDrawings([...drawings, { x: offsetX, y: offsetY, type: "begin", page: pageNumber }]);
     } else if (isErasing) {
+      const canvas = overlayCanvasRef.current;
+      const ctx = canvas.getContext("2d");
       const { offsetX, offsetY } = e.nativeEvent;
-      startX.current = offsetX;
-      startY.current = offsetY;
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
     }
   };
 
   const handleMouseMove = (e) => {
     if (isHighlighting) return;
+    if (isErasing) {
+      const canvas = overlayCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      const { offsetX, offsetY } = e.nativeEvent;
+      ctx.lineTo(offsetX, offsetY);
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      return;
+    }
     if (!isDrawing) return;
-    const canvas = pdfCanvasRef.current;
+    const canvas = overlayCanvasRef.current;
     const ctx = canvas.getContext("2d");
     const { offsetX, offsetY } = e.nativeEvent;
     ctx.lineTo(offsetX, offsetY);
     ctx.stroke();
-    setDrawings([...drawings, { x: offsetX, y: offsetY, type: "draw" }]);
+    setDrawings([...drawings, { x: offsetX, y: offsetY, type: "draw", page: pageNumber }]);
   };
 
   const handleMouseUp = (e) => {
@@ -323,144 +339,168 @@ const PdfComponents = () => {
       const { offsetX, offsetY } = e.nativeEvent;
       const width = offsetX - startX.current;
       const height = offsetY - startY.current;
-      setHighlights([...highlights, { x: startX.current, y: startY.current, width, height }]);
+      setHighlights([...highlights, { x: startX.current, y: startY.current, width, height, page: pageNumber }]);
     } else if (isDrawing) {
-      const canvas = pdfCanvasRef.current;
+      const canvas = overlayCanvasRef.current;
       const ctx = canvas.getContext("2d");
       ctx.closePath();
     } else if (isErasing) {
-      const { offsetX, offsetY } = e.nativeEvent;
-      const width = offsetX - startX.current;
-      const height = offsetY - startY.current;
-      eraseHighlightArea(startX.current, startY.current, width, height);
+      const canvas = overlayCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      ctx.closePath();
     }
-  };
-
-  const eraseHighlightArea = (x, y, width, height) => {
-    const canvas = pdfCanvasRef.current;
-    const context = canvas.getContext("2d");
-    context.clearRect(x, y, width, height);
-    setHighlights(highlights.filter(highlight => !(
-      highlight.x >= x &&
-      highlight.y >= y &&
-      highlight.x + highlight.width <= x + width &&
-      highlight.y + highlight.height <= y + height
-    )));
   };
 
   const handleSave = async () => {
-    if (!pdfDoc) return;
+  if (!pdfDoc) return;
 
+  try {
     const pdfDocLib = await PDFDocument.load(pdf);
     pdfDocLib.registerFontkit(fontkit);
+
+    // Load custom font
+    const fontUrl = '/src/assets/fonts/GreatVibes-Regular.ttf'; // Ensure this path is correct
+    const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+    const customFont = await pdfDocLib.embedFont(fontBytes);
+    const helveticaFont = await pdfDocLib.embedFont(StandardFonts.Helvetica);
     const pages = pdfDocLib.getPages();
-    const page = pages[pageNumber - 1];
-    const { width, height } = page.getSize();
 
-    const font = await pdfDocLib.embedFont(StandardFonts.Helvetica);
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      const { width, height } = page.getSize();
 
-    for (const element of elements) {
-      const yPos = height - element.y; // Correct y position for PDF rendering
+      // Filter elements for the current page
+      const pageElements = elements.filter(element => element.page === i + 1);
 
-      if (element.type === "text") {
-        const rgbColor = rgb(
-          parseInt(element.color.slice(1, 3), 16) / 255,
-          parseInt(element.color.slice(3, 5), 16) / 255,
-          parseInt(element.color.slice(5, 7), 16) / 255
-        );
-        page.drawText(element.content, {
-          x: element.x,
-          y: yPos - element.fontSize,
-          size: element.fontSize,
-          font,
-          color: rgbColor,
-          fontWeight: element.fontWeight,
-        });
-      } else if (element.type === "shape") {
-        // Handle shapes
-        if (element.shape === "circle") {
-          page.drawEllipse({
-            x: element.x + element.width / 2,
-            y: yPos - element.height / 2,
-            xScale: element.width / 2,
-            yScale: element.height / 2,
-            borderColor: rgb(0.5, 0.5, 0.5),
-            borderWidth: 2,
-          });
+      for (const element of pageElements) {
+        const yPos = height - element.y; // Correct y position for PDF rendering
+
+        switch (element.type) {
+          case "text":
+          case "date":
+          case "signature":
+          case "x":
+          case "tick":
+            const rgbColor = hexToRgb(element.color);
+            page.drawText(element.content, {
+              x: element.x,
+              y: yPos - element.fontSize,
+              size: element.fontSize,
+              font: element.type === "signature" ? customFont : helveticaFont,
+              color: rgbColor,
+            });
+            break;
+          case "shape":
+            if (element.shape === "circle") {
+              page.drawEllipse({
+                x: element.x + element.width / 2,
+                y: yPos - element.height / 2,
+                xScale: element.width / 2,
+                yScale: element.height / 2,
+                borderColor: hexToRgb(element.color),
+                borderWidth: 2,
+              });
+            }
+            // Add cases for other shapes as needed
+            break;
+          case "image":
+            const imageBytes = await fetch(element.src).then(res => res.arrayBuffer());
+            const pdfImage = await pdfDocLib.embedPng(imageBytes);
+            page.drawImage(pdfImage, {
+              x: element.x,
+              y: yPos - element.height,
+              width: element.width,
+              height: element.height,
+            });
+            break;
         }
-        // Add more shapes as needed
-      } else if (element.type === "image") {
-        const imageBytes = await fetch(element.src).then(res => res.arrayBuffer());
-        const pdfImage = await pdfDocLib.embedPng(imageBytes);
-        page.drawImage(pdfImage, {
-          x: element.x,
-          y: yPos - element.height,
-          width: element.width,
-          height: element.height,
-        });
-      } else if (element.type === "date") {
-        page.drawText(element.content, {
-          x: element.x,
-          y: yPos - 12,
-          size: 12,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      } else if (element.type === "signature") {
-        const fontBytes = await fetch('https://url-to-great-vibes-font-file.ttf').then(res => res.arrayBuffer());
-        const customFont = await pdfDocLib.embedFont(fontBytes);
-        page.drawText(element.content, {
-          x: element.x,
-          y: yPos - 32,
-          size: 32,
-          font: customFont,
-          color: rgb(0, 0, 0),
-        });
-      } else if (element.type === "x") {
-        page.drawText(element.content, {
-          x: element.x,
-          y: yPos - 24,
-          size: 24,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      } else if (element.type === "tick") {
-        page.drawText(element.content, {
-          x: element.x,
-          y: yPos - 24,
-          size: 24,
-          font,
-          color: rgb(0, 1, 0),
+      }
+
+      // Add highlights
+      const pageHighlights = highlights.filter(h => h.page === i + 1);
+      for (const highlight of pageHighlights) {
+        page.drawRectangle({
+          x: highlight.x,
+          y: height - highlight.y - highlight.height,
+          width: highlight.width,
+          height: highlight.height,
+          color: rgb(1, 1, 0),
+          opacity: 0.5,
         });
       }
-    }
 
-    highlights.forEach((highlight) => {
-      page.drawRectangle({
-        x: highlight.x,
-        y: height - highlight.y - highlight.height,
-        width: highlight.width,
-        height: highlight.height,
-        color: rgb(1, 1, 0),
-        opacity: 0.5,
-      });
-    });
+      // Add drawings
+      const pageDrawings = drawings.filter(d => d.page === i + 1);
+      if (pageDrawings.length > 0) {
+        const drawingsStream = pdfDocLib.context.addContentStream();
+        let drawingPath = '';
+        for (const drawing of pageDrawings) {
+          if (drawing.type === "begin") {
+            drawingPath += `${drawing.x} ${height - drawing.y} m `;
+          } else {
+            drawingPath += `${drawing.x} ${height - drawing.y} l `;
+          }
+        }
+        drawingsStream.push(`1 0 0 RG\n0.5 w\n${drawingPath}S\n`);
+        page.addContentStreams(drawingsStream);
+      }
+    }
 
     const pdfBytes = await pdfDocLib.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const file = new File([blob], 'modified.pdf', { type: 'application/pdf' });
 
-    // Save the modified PDF to Firebase storage
     const storageRef = storage.ref();
     const fileRef = storageRef.child(`modified_pdfs/${uuidv4()}.pdf`);
     await fileRef.put(blob);
 
-    // Optionally, save the file metadata to Firestore
-    await db.collection('inspectionForms').add({ title: 'Modified PDF', fileUrl: await fileRef.getDownloadURL() });
+    await db.collection('inspectionForms').add({
+      title: 'Modified PDF',
+      fileUrl: await fileRef.getDownloadURL(),
+      createdAt: new Date(),
+    });
 
-    // Show the popup message
     setSavePopup(true);
+  } catch (error) {
+    console.error("Error saving PDF:", error);
+    setPdfError(error.message);
+  }
+};
+
+// Helper function to convert hex color to rgb with error handling
+const hexToRgb = (color) => {
+  // Handle named colors
+  const namedColors = {
+    black: '#000000',
+    white: '#FFFFFF',
+    red: '#FF0000',
+    green: '#00FF00',
+    blue: '#0000FF',
+    // Add more named colors as needed
   };
+
+  if (namedColors[color.toLowerCase()]) {
+    color = namedColors[color.toLowerCase()];
+  }
+
+  if (!/^#([0-9A-F]{3}){1,2}$/i.test(color)) {
+    throw new Error(`Invalid color: ${color}`);
+  }
+
+  let r, g, b;
+  if (color.length === 4) {
+    r = parseInt(color[1] + color[1], 16);
+    g = parseInt(color[2] + color[2], 16);
+    b = parseInt(color[3] + color[3], 16);
+  } else {
+    r = parseInt(color.slice(1, 3), 16);
+    g = parseInt(color.slice(3, 5), 16);
+    b = parseInt(color.slice(5, 7), 16);
+  }
+
+  return rgb(r / 255, g / 255, b / 255);
+};
+
 
   return (
     <div style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", color: "#333", maxWidth: "100%", overflowX: "hidden" }}>
@@ -484,22 +524,140 @@ const PdfComponents = () => {
         <input {...getInputProps()} />
         <p style={{ margin: 0 }}>Drag & drop a PDF here, or click to select one</p>
       </div>
-      {pdf && (
-        <PdfViewer
-          pdfPages={pdfPages}
-          pageNumber={pageNumber}
-          pdfDoc={pdfDoc}
-          highlights={highlights}
-          drawings={drawings}
-          isDrawing={isDrawing}
-          isHighlighting={isHighlighting}
-          isErasing={isErasing}
-          handleMouseDown={handleMouseDown}
-          handleMouseMove={handleMouseMove}
-          handleMouseUp={handleMouseUp}
-          pdfCanvasRef={pdfCanvasRef}
-        />
-      )}
+      <div ref={pdfContainerRef} style={{ position: "relative" }}>
+        {!pdf && (
+          <p style={{ textAlign: "center", color: "#007bff", marginTop: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <FaInfoCircle style={{ marginRight: "8px" }} />
+            Drop a PDF and modify it at your will. Press Save to check the modified version in the report dashboard.
+          </p>
+        )}
+        {pdf && (
+          <>
+            <PdfViewer
+              pdfPages={pdfPages}
+              pageNumber={pageNumber}
+              pdfDoc={pdfDoc}
+              highlights={highlights}
+              drawings={drawings}
+              isDrawing={isDrawing}
+              isHighlighting={isHighlighting}
+              isErasing={isErasing}
+              handleMouseDown={handleMouseDown}
+              handleMouseMove={handleMouseMove}
+              handleMouseUp={handleMouseUp}
+              pdfCanvasRef={pdfCanvasRef}
+            />
+            <canvas
+              ref={overlayCanvasRef}
+              width={pdfContainerRef.current ? pdfContainerRef.current.clientWidth : 0}
+              height={pdfContainerRef.current ? pdfContainerRef.current.clientHeight : 0}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 10,
+                pointerEvents: 'none',
+              }}
+            />
+          </>
+        )}
+        {elements.map((element, index) => (
+          <Draggable
+            key={element.id}
+            bounds="parent"
+            defaultPosition={{ x: element.x, y: element.y }}
+            onStop={(e, data) => handleElementDrag(index, data.x, data.y)}
+          >
+            <div
+              style={{
+                position: "absolute",
+                cursor: "move",
+                userSelect: "none",
+              }}
+            >
+              {element.type === "text" && (
+                <span
+                  style={{
+                    fontSize: `${element.fontSize}px`,
+                    fontFamily: element.font,
+                    fontWeight: element.fontWeight,
+                    color: element.color,
+                  }}
+                >
+                  {element.content || "Type here"}
+                </span>
+              )}
+              {element.type === "signature" && (
+                <span
+                  style={{
+                    fontSize: `${element.fontSize}px`,
+                    fontFamily: element.font,
+                    color: element.color,
+                  }}
+                >
+                  {element.content || "Type here"}
+                </span>
+              )}
+              {element.type === "x" && (
+                <span
+                  style={{
+                    fontSize: `${element.fontSize}px`,
+                    fontFamily: element.font,
+                    color: element.color,
+                  }}
+                >
+                  {element.content}
+                </span>
+              )}
+              {element.type === "tick" && (
+                <span
+                  style={{
+                    fontSize: `${element.fontSize}px`,
+                    fontFamily: element.font,
+                    color: element.color,
+                  }}
+                >
+                  {element.content}
+                </span>
+              )}
+              {element.type === "image" && (
+                <img
+                  src={element.src}
+                  alt="Uploaded"
+                  style={{
+                    width: element.width,
+                    height: element.height,
+                    objectFit: "cover",
+                  }}
+                />
+              )}
+              {element.type === "date" && (
+                <span
+                  style={{
+                    fontSize: `${element.fontSize}px`,
+                    fontFamily: element.font,
+                    color: element.color,
+                    fontWeight: element.fontWeight,
+                  }}
+                >
+                  {element.content}
+                </span>
+              )}
+              {element.type === "shape" && element.shape === "circle" && (
+                <div
+                  style={{
+                    width: `${element.width}px`,
+                    height: `${element.height}px`,
+                    borderRadius: "50%",
+                    border: '2px solid black',
+                    backgroundColor: 'transparent',
+                  }}
+                ></div>
+              )}
+            </div>
+          </Draggable>
+        ))}
+      </div>
       {textBoxVisible && (
         <TextBox
           textBoxContent={textBoxContent}
@@ -557,6 +715,7 @@ const PdfComponents = () => {
       {savePopup && (
         <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", padding: "10px 20px", background: "#28a745", color: "#fff", borderRadius: "4px", zIndex: 1000 }}>
           <p style={{ margin: 0 }}>PDF saved successfully!</p>
+          <p style={{ margin: 0 }}>Check the Report Dashboard.</p>
         </div>
       )}
     </div>
@@ -564,3 +723,4 @@ const PdfComponents = () => {
 };
 
 export default PdfComponents;
+
