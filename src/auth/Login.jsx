@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import Swal from 'sweetalert2';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css'; // Importing the toastify CSS
 import { auth } from "./firebase"; // Adjust the import path as necessary
 import logo from "../assets/logo.png";
 import Button from "../ui/Button";
@@ -57,44 +58,39 @@ function LoginForm() {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      Swal.fire({
-        title: 'Login Successful!',
-        text: 'You have logged in successfully.',
-        icon: 'success',
-        confirmButtonText: 'OK',
-      }).then(() => {
-        navigate("/home");
+      toast.success('Login Successful!', {
+        position: "top-right",
+        autoClose: 3000,
       });
+      navigate("/home");
     } catch (err) {
       setError(err.message);
+      toast.error(err.message, {
+        position: "top-right",
+        autoClose: 3000,
+      });
     }
   };
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Swal.fire({
-        title: 'Error!',
-        text: 'Please enter your email address to reset your password.',
-        icon: 'error',
-        confirmButtonText: 'OK',
+      toast.error('Please enter your email address to reset your password.', {
+        position: "top-right",
+        autoClose: 3000,
       });
       return;
     }
 
     try {
       await sendPasswordResetEmail(auth, email);
-      Swal.fire({
-        title: 'Email Sent!',
-        text: 'Please check your email for password reset instructions.',
-        icon: 'success',
-        confirmButtonText: 'OK',
+      toast.success('Please check your email for password reset instructions.', {
+        position: "top-right",
+        autoClose: 3000,
       });
     } catch (err) {
-      Swal.fire({
-        title: 'Error!',
-        text: err.message,
-        icon: 'error',
-        confirmButtonText: 'OK',
+      toast.error(err.message, {
+        position: "top-right",
+        autoClose: 3000,
       });
     }
   };
@@ -129,6 +125,7 @@ function LoginForm() {
       >
         Forgot password
       </button>
+      <ToastContainer /> {/* Make sure this is present to render the toasts */}
     </div>
   );
 }
