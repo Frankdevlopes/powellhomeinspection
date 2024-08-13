@@ -564,7 +564,7 @@ const PdfComponents = () => {
         {!pdf && (
           <p style={{ textAlign: "center", color: "#007bff", marginTop: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <FaInfoCircle style={{ marginRight: "8px" }} />
-            Drop a PDF and modify it at your will. Press Save to check the modified version in the report dashboard drag the elements frpom the bottom of the pdf.
+            Drop a PDF and modify it at your will. Press Save to check the modified version in the report dashboard drag the elements from the bottom of the pdf.
           </p>
         )}
         {pdf && (
